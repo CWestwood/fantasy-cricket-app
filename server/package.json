@@ -1,0 +1,28 @@
+{
+  "name": "fantasy-cricket-api",
+  "version": "1.0.0",
+  "description": "Express API and Data Synchronization for Fantasy Cricket Website",
+  "main": "cricketDataSync.js",
+  "scripts": {
+    "start": "node cricketDataSync.js",
+    "dev": "nodemon cricketDataSync.js"
+  },
+  "keywords": [
+    "cricket",
+    "api",
+    "supabase",
+    "express"
+  ],
+  "author": "C Westwood",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.75.0",
+    "axios": "^1.12.2",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.2"
+  }
+}
