@@ -1,0 +1,37 @@
+name: Completed Match Sync and Points Allocation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3,15 * * *' # Runs at 03:00 and 15:00 UTC daily
+
+jobs:
+  sync-and-allocate-points:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      CRICKET_API_KEY: ${{ secrets.CRICKET_API_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run syncCompletedMatchData.js
+        run: node syncCompletedMatchData.js
+
+      - name: Run points_allocation.js
+        run: node points_allocation.js
+
+      - name: Run applyBonuses.js
+        run: node applyBonuses.js

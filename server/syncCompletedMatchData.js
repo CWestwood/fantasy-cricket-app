@@ -593,6 +593,7 @@ async function getOrCreatePlayer(playerId, playerName, tournamentId, supabase, c
     id: newPlayerId,
     name: playerInfo.data.name,
     role: playerInfo.data.role,
+    team_name: playerInfo.data.team_name,
     country_name: playerInfo.data.country,
     player_id: playerInfo.data.id,
     tournament_id: tournamentId,
