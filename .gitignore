@@ -13,6 +13,8 @@ Thumbs.db
 .env.production.local
 # Exception: Allow the example file so devs know what keys they need
 !.env.example
+client/.env
+server/.env
 
 # --- Dependencies ---
 node_modules/
