@@ -1,7 +1,7 @@
   // Remove unused import (useMemo, useState for isFiltering)
 import React, { useEffect, useState, useRef } from "react";
 import { TEAM_COLORS } from "../constants/colors";
-import { useTeam } from "../contexts/TeamContext";
+import { useTeam } from "../context/TeamContext";
 import { supabase } from "../utils/supabaseClient";
 import { containsProfanity, sanitizeName } from "../utils/profanity";
 import BatIcon from "../assets/icons/bat_white.svg";

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useTeam } from "../contexts/TeamContext";
+import { useTeam } from "../context/TeamContext";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 

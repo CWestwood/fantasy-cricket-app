@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../utils/supabaseClient";
-import { useTeam } from "../contexts/TeamContext";
+import { useTeam } from "../context/TeamContext";
 
 export default function Leaderboard() {
   const { tournamentId } = useTeam();

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { TEAM_COLORS } from "../constants/colors";
-import { useTeam } from "../contexts/TeamContext";
+import { useTeam } from "../context/TeamContext";
 import { supabase } from "../utils/supabaseClient";
 import BatIcon from "../assets/icons/bat_white.svg";
 import BallIcon from "../assets/icons/ball_white.svg";

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../utils/supabaseClient";
-import { useTeam } from "../contexts/TeamContext";
+import { useTeam } from "../context/TeamContext";
 import { TEAM_COLORS } from "../constants/colors";
 
 export default function Schedule() {

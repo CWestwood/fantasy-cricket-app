@@ -1,0 +1,19 @@
+version: "3.8"
+services:
+  client:
+    build: ./client
+    ports:
+      - "3000:80" # Adjust if your client serves on a different port
+    depends_on:
+      - server
+
+  server:
+    build: ./server
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      CRICKET_API_KEY: ${CRICKET_API_KEY}
+      GITHUB_TOKEN: ${DB_PASSWORD}
+    # Uncomment if your backend serves HTTP
+    # ports:
+    #   - "5000:5000"

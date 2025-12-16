@@ -60,7 +60,7 @@ export const TeamProvider = ({ children }) => {
       const { data } = await supabase
         .from("tournaments")
         .select("id")
-        .eq("name", "Big Bash 2024/5") // Adjust to match your tournament name
+        .eq("name", "Big Bash 2025/6") // Adjust to match your tournament name
         .single();
       
       if (data) setTournamentId(data.id);

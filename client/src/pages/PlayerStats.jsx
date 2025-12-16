@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiChevronDown } from "react-icons/fi";
 import { supabase } from "../utils/supabaseClient";
-import { useTeam } from "../contexts/TeamContext";
+import { useTeam } from "../context/TeamContext";
 import BatIcon from "../assets/icons/bat_white.svg";
 import BallIcon from "../assets/icons/ball_white.svg";
 import AllrounderIcon from "../assets/icons/allrounder_white.svg";
