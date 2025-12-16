@@ -1,0 +1,23 @@
+# /client/.dockerignore
+
+# 1. DEPENDENCIES
+node_modules/
+
+# 2. GIT FILES
+.git/
+.gitignore
+
+# 3. BUILD OUTPUTS
+dist/
+build/
+
+# 4. ENVIRONMENT & SECRETS (CRITICAL)
+.env.local
+.env.*
+
+# 5. LOGS & MISC
+npm-debug.log
+yarn-debug.log
+Dockerfile
+.dockerignore
+README.md
