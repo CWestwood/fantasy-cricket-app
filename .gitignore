@@ -42,3 +42,6 @@ postgres_data/
 # --- Misc ---
 *.log
 random_team_generator.py
+team_players.csv
+teams.csv
+users.csv
