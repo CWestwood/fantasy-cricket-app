@@ -3,9 +3,16 @@ const { v4: uuidv4 } = require('uuid');
 const SyncLogger = require('./utils/synclogger');
 
 async function syncMatchData() {
-  
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  // Initialize Supabase client
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const cricketApiKey = process.env.CRICKET_API_KEY;
+
+    if (!supabaseUrl || !supabaseKey || !cricketApiKey) {
+      throw new Error('Missing required environment variables');
+    };
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const logger = new SyncLogger(supabase);
 
     const stats = {
