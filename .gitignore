@@ -38,3 +38,7 @@ supabase/functions/_shared/deno.lock  # Optional: Lock file for Deno can be igno
 # --- Docker ---
 # If you map volumes locally, you don't want to commit the data inside them
 postgres_data/
+
+# --- Misc ---
+*.log
+random_team_generator.py
