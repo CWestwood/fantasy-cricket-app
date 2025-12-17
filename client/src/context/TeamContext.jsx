@@ -110,6 +110,10 @@ export const TeamProvider = ({ children }) => {
             .select(`
               player_id,
               is_captain,
+              is_substituted,
+              added_at,
+              removed_at,
+              is_starter,
               players:player_id (*)
             `)
             .eq("team_id", teamData.id);
@@ -120,6 +124,10 @@ export const TeamProvider = ({ children }) => {
           const loadedPlayers = teamPlayersData.map(tp => ({
             ...tp.players,
             is_captain: tp.is_captain,
+            is_substituted: tp.is_substituted,
+            added_at: tp.added_at,
+            removed_at: tp.removed_at,
+            is_starter: tp.is_starter,
           })).filter(Boolean);
 
           setSelectedPlayers(loadedPlayers);
