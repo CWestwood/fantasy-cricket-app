@@ -13,7 +13,7 @@ jobs:
         working-directory: server
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       CRICKET_API_KEY: ${{ secrets.CRICKET_API_KEY }}
     steps:
       - name: Checkout repository
