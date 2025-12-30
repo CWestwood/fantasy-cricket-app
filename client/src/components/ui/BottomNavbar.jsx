@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FiBarChart2, FiCalendar, FiMenu, FiX, FiClipboard } from "react-icons/fi";
 import { MdOutlineSportsCricket } from "react-icons/md";
 import { supabase } from "../../utils/supabaseClient";
+import { useTeam } from "../../context/TeamContext";
 import { ClipboardDocumentCheckIcon } from "@heroicons/react/16/solid";
 
 const NavItem = ({ icon, label, onClick }) => (
@@ -19,6 +20,7 @@ const BottomNavbar = ({ onNavigate }) => {
   const [isVisible, setIsVisible] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { isTeamLocked } = useTeam();
 
   // Effect to handle showing/hiding the navbar on scroll
   useEffect(() => {
@@ -54,12 +56,14 @@ const BottomNavbar = ({ onNavigate }) => {
           isVisible ? "translate-y-0" : "translate-y-full"
         }`}
       >
-        <div className="max-w-5xl mx-auto h-full grid grid-cols-5">
-          <NavItem
-            icon={<FiClipboard size={22} />}
-            label="Team Selection"
-            onClick={() => navigate("/team")}
-          />
+        <div className={`max-w-5xl mx-auto h-full grid ${isTeamLocked ? 'grid-cols-4' : 'grid-cols-5'}`}>
+          {!isTeamLocked && (
+            <NavItem
+              icon={<FiClipboard size={22} />}
+              label="Team Selection"
+              onClick={() => navigate("/team")}
+            />
+          )}
           <NavItem
             icon={<MdOutlineSportsCricket size={22} style={{ transform: 'rotate(190deg)' }} />}
             label="My Team"

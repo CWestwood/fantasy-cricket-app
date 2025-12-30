@@ -17,6 +17,9 @@ export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, ca
     substitutionsRemaining,
   } = useTeam();
 
+  // For tracking pending substitution
+  const [pendingSubstitutionId, setPendingSubstitutionId] = useState(null);
+
   const [playerToRemove, setPlayerToRemove] = useState(null);
   const [availablePlayers, setAvailablePlayers] = useState([]);
   const [displayedPlayers, setDisplayedPlayers] = useState([]);
@@ -253,57 +256,36 @@ export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, ca
     setError("");
 
     try {
-      const now = new Date().toISOString();
-      const isRemovingCaptain = captain?.id === playerToRemove.id;
-
-      // Use a Supabase RPC call or batch update/insert in correct order
-      // First, get the current team_players row for the player being removed
-      const { data: existingRow, error: fetchError } = await supabase
-        .from("team_players")
-        .select("id")
-        .eq("team_id", teamId)
-        .eq("player_id", playerToRemove.id)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      // 1. Mark removed player as substituted
-      const { error: updateError } = await supabase
-        .from("team_players")
-        .update({
-          is_substituted: true,
-          removed_at: now,
-          is_starter: false,
-        })
-        .eq("id", existingRow.id);
-
-      if (updateError) throw updateError;
-
-      // Wait a moment to ensure the update is committed
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // 2. Add new player as starter with captain status if needed
-      const { error: insertError } = await supabase
-        .from("team_players")
+      // 1. Insert substitution request into substitutions table
+      const { data: substitution, error: insertError } = await supabase
+        .from("substitutions")
         .insert({
+        
           team_id: teamId,
-          player_id: playerToAdd.id,
-          is_captain: isRemovingCaptain,
-          is_substituted: false,
-          added_at: now,
-          is_starter: true,
-        });
+          tournament_id: tournamentId,
+          player_out_id: playerToRemove.id,
+          player_in_id: playerToAdd.id,
+          status: "pending",
+          requested_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
 
       if (insertError) throw insertError;
 
-      // 3. Update subs_used in teams table
-      const { error: updateTeamError } = await supabase
-        .from("teams")
-        .update({ subs_used: (3 - substitutionsRemaining) + 1 })
-        .eq("id", teamId);
+      setPendingSubstitutionId(substitution.id);
 
-      if (updateTeamError) throw updateTeamError;
+      // 2. Call backend RPC to process the substitution
+      const { error: rpcError } = await supabase.rpc("process_substitution", {
+        p_substitution_id: substitution.id,
+      });
 
+      if (rpcError) {
+        console.error("RPC Error:", rpcError.message);
+        throw rpcError;
+      }
+
+      // 3. If successful, show success message
       setSuccess(true);
       setPlayerToRemove(null);
       setPlayerToAdd(null);
@@ -313,7 +295,7 @@ export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, ca
       }, 2000);
     } catch (err) {
       console.error("Substitution error:", err);
-      setError(err.message || "Failed to complete substitution");
+      setError(err.message || "Failed to request substitution");
     } finally {
       setLoading(false);
     }
@@ -386,7 +368,7 @@ export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, ca
             )}
             {success && (
               <div className="bg-green-900 bg-opacity-30 border border-green-600 rounded-lg p-3 text-sm text-green-300">
-                Substitution completed successfully!
+                Substitution processed successfully!
               </div>
             )}
 

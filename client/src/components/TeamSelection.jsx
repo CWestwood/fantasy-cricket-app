@@ -9,8 +9,9 @@ const TeamSelection = () => {
   const [filteredPlayers, setFilteredPlayers] = useState([]);
   const [displayedPlayers, setDisplayedPlayers] = useState([]);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
+  const [showSetupModal, setShowSetupModal] = useState(false);
   const [tempUsername, setTempUsername] = useState("");
+  const [tempTeamName, setTempTeamName] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const playersPerPage = 40;
   const [filters, setFilters] = useState({
@@ -20,6 +21,9 @@ const TeamSelection = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isChecking, setIsChecking] = useState(false);
+  const [isAvailable, setIsAvailable] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
     selectedPlayers,
@@ -60,6 +64,35 @@ const TeamSelection = () => {
     loadPlayers();
   }, []);
 
+  // Check if user has existing team and show setup modal if needed
+  useEffect(() => {
+    const checkUserSetup = async () => {
+      if (!user) return;
+
+      try {
+        // Check if user has a team
+        const { data: userTeams, error: teamError } = await supabase
+          .from("teams")
+          .select("id")
+          .eq("user_id", user.id)
+          .limit(1);
+
+        if (teamError) throw teamError;
+
+        // If no team exists and user has no username, show setup modal
+        if (!userTeams || userTeams.length === 0) {
+          if (!username?.trim()) {
+            setShowSetupModal(true);
+          }
+        }
+      } catch (error) {
+        console.error("Error checking user setup:", error);
+      }
+    };
+
+    checkUserSetup();
+  }, [user, username]);
+
   // Update filter effect
   useEffect(() => {
     let result = availablePlayers;
@@ -93,6 +126,60 @@ const TeamSelection = () => {
     setCurrentPage(1);
     setDisplayedPlayers(result.slice(0, playersPerPage));
   }, [filters, availablePlayers]);
+
+  // Debounced username availability check
+  useEffect(() => {
+    if (!showSetupModal) return;
+
+    const checkUsername = async () => {
+      const cleanUsername = sanitizeName(tempUsername.trim().replace(/\s+/g, " "), 24).toLowerCase();
+
+      if (!cleanUsername) {
+        setIsChecking(false);
+        setIsAvailable(false);
+        return;
+      }
+
+      if (containsProfanity(cleanUsername)) {
+        setIsChecking(false);
+        setIsAvailable(false);
+        setError("Username contains disallowed language");
+        return;
+      }
+
+      try {
+        const { data: existing, error: checkError } = await supabase
+          .from("users")
+          .select("id")
+          .filter("username", "ilike", cleanUsername)
+          .neq("id", user?.id);
+
+        if (checkError) throw checkError;
+
+        if (existing && existing.length > 0) {
+          setError("That username is already taken.");
+          setIsAvailable(false);
+        } else {
+          setError("");
+          setIsAvailable(true);
+        }
+      } catch (error) {
+        console.error("Check error:", error);
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    setIsAvailable(false);
+    if (tempUsername.trim()) {
+      setIsChecking(true);
+      const timeoutId = setTimeout(checkUsername, 500);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setIsChecking(false);
+      setError("");
+    }
+  }, [tempUsername, showSetupModal, user]);
 
   const handlePlayerSelect = async (player) => {
     if (selectedPlayers.find((p) => p.id === player.id)) {
@@ -141,38 +228,79 @@ const TeamSelection = () => {
     setCurrentPage(nextPage);
   };
 
-  const handleUsernameSubmit = async () => {
-    const cleanUsername = sanitizeName(tempUsername, 24);
-    
+  const handleSetupSubmit = async () => {
+    if (isChecking || !isAvailable) return;
+    setIsSubmitting(true);
+
+    const cleanUsername = sanitizeName(tempUsername.trim().replace(/\s+/g, " "), 24).toLowerCase();
+    const cleanTeamName = sanitizeName(tempTeamName.trim(), 40);
+
     if (!cleanUsername) {
       setError("Please enter a username");
+      setIsSubmitting(false);
       return;
     }
 
-    if (containsProfanity(cleanUsername)) {
-      setError("Username contains disallowed language");
+    if (!cleanTeamName) {
+      setError("Please enter a team name");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (containsProfanity(cleanUsername) || containsProfanity(cleanTeamName)) {
+      setError("Username or team name contains disallowed language");
+      setIsSubmitting(false);
       return;
     }
 
     try {
-      // Update context with the username
+      // Check if username is already taken (case-insensitive, trimmed)
+      const { data: existing, error: checkError } = await supabase
+        .from("users")
+        .select("id")
+        .filter("username", "ilike", cleanUsername)
+        .neq("id", user.id);
+
+      if (checkError) throw checkError;
+
+      if (existing && existing.length > 0) {
+        setError("That username is already taken. Please choose another.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Save username to database
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({ username: cleanUsername })
+        .eq("id", user.id);
+
+      if (updateError) throw updateError;
+
+      // Save team name to localStorage
+      localStorage.setItem("selectedTeamName", cleanTeamName);
+
+      // Update context with the username and team name
       setUsername(cleanUsername);
-      setShowUsernamePrompt(false);
+      setTeamName(cleanTeamName);
+      setShowSetupModal(false);
       setTempUsername("");
+      setTempTeamName("");
       setError("");
-      
-      // Now proceed with saving the team
-      await handleSaveTeam();
     } catch (error) {
-      setError(error.message || "Failed to save username");
+      console.error("Setup error:", error);
+      setError(error.message || "Failed to save setup");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleSaveTeam = async () => {
+  const handleSaveTeam = async (usernameOverride = null) => {
     console.log("Save team clicked");
+    const currentUsername = usernameOverride || username;
     console.log("Team state:", {
       teamName,
-      username,
+      username: currentUsername,
       selectedPlayers: selectedPlayers.length,
       hasCaptain: !!captain,
     });
@@ -184,14 +312,15 @@ const TeamSelection = () => {
       return;
     }
 
-    // Check if username exists, if not prompt for it
-    if (!username?.trim()) {
-      setShowUsernamePrompt(true);
+    // Check if username exists, if not show setup modal
+    if (!currentUsername?.trim()) {
+      setShowSetupModal(true);
       setTempUsername("");
+      setTempTeamName(teamName);
       return;
     }
 
-    const cleanUsername = sanitizeName(username, 24);
+    const cleanUsername = sanitizeName(currentUsername, 24);
 
     // Profanity checks
     if (containsProfanity(cleanTeamName) || containsProfanity(cleanUsername)) {
@@ -243,13 +372,6 @@ const TeamSelection = () => {
       setTimeout(() => setShowSuccess(false), 5000);
     } catch (error) {
       console.error("Save team error:", error);
-      
-      // Handle username required error specifically
-      if (error.message === "USERNAME_REQUIRED") {
-        setShowUsernamePrompt(true);
-        return;
-      }
-      
       setError(error.message || "Failed to save team");
     }
   };
@@ -313,50 +435,74 @@ const TeamSelection = () => {
         </div>
       )}
 
-      {/* Username Prompt Modal */}
-      {showUsernamePrompt && (
+      {/* Setup Modal - Combined Username and Team Name */}
+      {showSetupModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
           <div className="absolute inset-0 bg-black opacity-50"></div>
           <div className="bg-white rounded-lg p-8 max-w-md mx-4 relative z-10">
             <div className="text-center">
               <h3 className="text-lg font-bold text-gray-900 mb-2">
-                Choose Your Username
+                Complete Your Setup
               </h3>
-              <p className="text-sm text-gray-500 mb-4">
-                You need a username before saving your team.
+              <p className="text-sm text-gray-500 mb-6">
+                Create your username and team name to get started.
               </p>
-              <input
-                type="text"
-                value={tempUsername}
-                onChange={(e) => setTempUsername(e.target.value)}
-                className="input w-full mb-4"
-                placeholder="Enter username"
-                autoFocus
-                onKeyPress={(e) => {
-                  if (e.key === "Enter") {
-                    handleUsernameSubmit();
-                  }
-                }}
-              />
+
+              {/* Username Input */}
+              <div className="mb-4 text-left">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={tempUsername}
+                  onChange={(e) => setTempUsername(e.target.value)}
+                  className="input w-full mb-2"
+                  placeholder="Enter your username"
+                  autoFocus
+                />
+                {isChecking && (
+                  <p className="text-sm text-blue-600 mb-2">Checking availability...</p>
+                )}
+              </div>
+
+              {/* Team Name Input */}
+              <div className="mb-4 text-left">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Team Name
+                </label>
+                <input
+                  type="text"
+                  value={tempTeamName}
+                  onChange={(e) => setTempTeamName(e.target.value)}
+                  className="input w-full"
+                  placeholder="Enter your team name"
+                />
+              </div>
+
               {error && (
-                <p className="text-sm text-red-600 mb-4">{error}</p>
+                <p className="text-sm text-red-600 mb-4 text-left">{error}</p>
               )}
+
               <div className="flex gap-3">
                 <button
                   onClick={() => {
-                    setShowUsernamePrompt(false);
+                    setShowSetupModal(false);
                     setTempUsername("");
+                    setTempTeamName("");
                     setError("");
                   }}
                   className="btn btn-secondary flex-1"
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleUsernameSubmit}
+                  onClick={handleSetupSubmit}
                   className="btn btn-primary flex-1"
+                  disabled={isSubmitting || isChecking || !isAvailable}
                 >
-                  Continue
+                  {isSubmitting ? "Processing..." : "Continue"}
                 </button>
               </div>
             </div>
@@ -392,8 +538,9 @@ const TeamSelection = () => {
               id="username"
               value={username || ""}
               onChange={(e) => setUsername(e.target.value)}
-              className="input w-full"
+              className={`input w-full ${username ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
               placeholder="Enter your username"
+              disabled={!!username}
               required
             />
           </div>
@@ -475,7 +622,7 @@ const TeamSelection = () => {
       </div>
 
       {/* Error message */}
-      {error && !showUsernamePrompt && (
+      {error && !showSetupModal && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4">
           <div className="flex">
             <div className="flex-shrink-0">

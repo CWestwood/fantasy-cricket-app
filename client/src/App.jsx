@@ -11,7 +11,7 @@ import TeamDetail from "./pages/TeamDetail";
 import PlayerProfile from "./pages/PlayerProfile";
 import PlayerStats from "./pages/PlayerStats";
 import { useState, useEffect } from "react";
-import { TeamProvider } from "./context/TeamContext";
+import { TeamProvider, useTeam } from "./context/TeamContext";
 import BottomNavbar from "./components/ui/BottomNavbar";
 import Header from "./components/ui/header";
 import { supabase } from "./utils/supabaseClient";
@@ -21,6 +21,7 @@ function AppContent() {
   const [error, setError] = useState(null);
   const [session, setSession] = useState(null);
   const location = useLocation();
+  const { isTeamLocked } = useTeam();
 
   // This effect handles the initial load and auth state changes
   useEffect(() => {
@@ -45,7 +46,6 @@ function AppContent() {
 
         // Set up auth state listener for subsequent changes
         const { data } = supabase.auth.onAuthStateChange((event, newSession) => {
-          console.log("Auth event:", event);
           setSession(newSession || null);
         });
 
@@ -106,20 +106,28 @@ function AppContent() {
   }
 
   return (
-    <TeamProvider>
-      <Routes>
-        <Route 
-          path="/" 
-          element={session ? <Navigate to="/team" replace /> : <Landing />} 
-        />
-        <Route 
-          path="/login" 
-          element={session ? <Navigate to="/team" replace /> : <Login />} 
-        />
-        <Route
-          path="/team"
-          element={
-            session ? (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          session ? (
+            isTeamLocked ? <Navigate to="/my-team" replace /> : <Navigate to="/team" replace />
+          ) : (
+            <Landing />
+          )
+        }
+      />
+      <Route
+        path="/login"
+        element={session ? (isTeamLocked ? <Navigate to="/my-team" replace /> : <Navigate to="/team" replace />) : <Login />}
+      />
+      <Route
+        path="/team"
+        element={
+          session ? (
+            isTeamLocked ? (
+              <Navigate to="/my-team" replace />
+            ) : (
               <>
                 <Header />
                 <main className="flex-1">
@@ -127,11 +135,12 @@ function AppContent() {
                 </main>
                 <BottomNavbar onNavigate={() => {}} />
               </>
-            ) : (
-              <Navigate to="/login" replace />
             )
-          }
-        />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
         <Route
           path="/profile"
           element={
@@ -245,14 +254,15 @@ function AppContent() {
           }
         />
       </Routes>
-    </TeamProvider>
   );
 }
 
 function App() {
   return (
     <Router>
-      <AppContent />
+      <TeamProvider>
+        <AppContent />
+      </TeamProvider>
     </Router>
   );
 }

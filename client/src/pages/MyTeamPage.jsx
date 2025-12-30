@@ -26,6 +26,7 @@ export default function MyTeamPage() {
   const [expandedPlayerId, setExpandedPlayerId] = useState(null);
   const [playerScores, setPlayerScores] = useState({});
   const [isSubstitutionModalOpen, setIsSubstitutionModalOpen] = useState(false);
+  const [displayedPlayers, setDisplayedPlayers] = useState([]);
 
   // Map roles to their icons
   const roleIconMap = {
@@ -42,11 +43,11 @@ export default function MyTeamPage() {
 
   // Fetch player performance data from materialized view
   useEffect(() => {
-    if (!selectedPlayers || selectedPlayers.length === 0 || !tournamentId || !teamId) return;
+    if (!displayedPlayers || displayedPlayers.length === 0 || !tournamentId || !teamId) return;
 
     async function fetchPlayerPerformance() {
       try {
-        const playerIds = selectedPlayers.map((p) => p.id);
+        const playerIds = displayedPlayers.map((p) => p.id);
         const { data, error } = await supabase
           .from("player_performance_summary")
           .select("player_id, batting, bowling, fielding, bonus, fantasy_total")
@@ -86,7 +87,7 @@ export default function MyTeamPage() {
     }
 
     fetchPlayerPerformance();
-  }, [selectedPlayers, tournamentId, teamId]);
+  }, [displayedPlayers, tournamentId, teamId]);
 
   // Fetch leaderboard position
   useEffect(() => {
@@ -118,13 +119,63 @@ export default function MyTeamPage() {
   }, [teamId, tournamentId]);
 
   // Calculate total points from actual player scores
-  const totalPoints = selectedPlayers.reduce((sum, p) => {
+  const totalPoints = (displayedPlayers || selectedPlayers).reduce((sum, p) => {
     return sum + (playerScores[p.id]?.total || 0);
   }, 0);
 
+  // Determine displayed players' substitution status by consulting the substitutions table
+  useEffect(() => {
+    let mounted = true;
+    const applySubstitutionStatus = async () => {
+      try {
+        if (!selectedPlayers || selectedPlayers.length === 0) {
+          if (mounted) setDisplayedPlayers([]);
+          return;
+        }
+
+        // If we don't have a teamId yet, just reflect whatever is on selectedPlayers
+        if (!teamId) {
+          if (mounted) setDisplayedPlayers(selectedPlayers);
+          return;
+        }
+
+        // Fetch completed substitutions for this team
+        const { data, error } = await supabase
+          .from("substitutions")
+          .select("player_out_id, player_in_id")
+          .eq("team_id", teamId)
+          .eq("status", "completed");
+
+        if (error) {
+          console.error("Error fetching substitutions:", error);
+          if (mounted) setDisplayedPlayers(selectedPlayers);
+          return;
+        }
+
+        const outSet = new Set((data || []).map((r) => r.player_out_id).filter(Boolean));
+        const inSet = new Set((data || []).map((r) => r.player_in_id).filter(Boolean));
+
+        const mapped = selectedPlayers.map((p) => ({
+          ...p,
+          is_substituted: Boolean(outSet.has(p.id)),
+          is_substituted_in: Boolean(inSet.has(p.id)),
+        }));
+
+        if (mounted) setDisplayedPlayers(mapped);
+      } catch (e) {
+        console.error("Exception checking substitutions:", e);
+        if (mounted) setDisplayedPlayers(selectedPlayers);
+      }
+    };
+
+    applySubstitutionStatus();
+
+    return () => { mounted = false; };
+  }, [selectedPlayers, teamId]);
+
   // Separate and sort players: active first (sorted by captain), then substituted out
-  const activePlayers = selectedPlayers.filter(p => !p.is_substituted);
-  const substitutedOutPlayers = selectedPlayers.filter(p => p.is_substituted);
+  const activePlayers = (displayedPlayers.length ? displayedPlayers : selectedPlayers).filter((p) => !p.is_substituted);
+  const substitutedOutPlayers = (displayedPlayers.length ? displayedPlayers : selectedPlayers).filter((p) => p.is_substituted);
 
   const sortedActivePlayers = [...activePlayers].sort((a, b) => {
     if (captain?.id === a.id) return -1;
@@ -150,18 +201,22 @@ export default function MyTeamPage() {
             <h1 className="text-2xl sm:text-3xl font-bold text-primary-500 mb-1 sm:mb-2">
               {teamName || "Your Team"}
             </h1>
-            <p className="text-sm sm:text-base text-gray-300">Manager: {username || "Your Name"}</p>
           </div>
 
           {/* Stats Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
-            {/* Leaderboard Position */}
-            <div className="flex flex-col items-center justify-center bg-dark-500 rounded-lg p-3 sm:p-4">
+            {/* Leaderboard Position (clickable) */}
+            <button
+              type="button"
+              onClick={() => navigate("/leaderboard")}
+              className="flex flex-col items-center justify-center bg-dark-500 rounded-lg p-3 sm:p-4 hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              aria-label="View leaderboard"
+            >
               <div className="text-3xl sm:text-5xl font-bold text-primary-500 mb-1 sm:mb-2">
                 {leaderboardPosition ? `#${leaderboardPosition}` : "—"}
               </div>
               <p className="text-xs sm:text-sm text-gray-400 text-center">Leaderboard</p>
-            </div>
+            </button>
 
             {/* Total Points */}
             <div className="flex flex-col items-center justify-center bg-dark-500 rounded-lg p-3 sm:p-4">
@@ -204,7 +259,7 @@ export default function MyTeamPage() {
                 {sortedPlayers.map((player) => (
                   <div
                     key={player.id}
-                    className={`${player.is_substituted ? "bg-gray-600" : "bg-dark-500"} rounded-lg overflow-hidden`}
+                    className={`${player.is_substituted ? "bg-gray-600" : (TEAM_COLORS[player.team_name] || "bg-dark-500")} rounded-lg overflow-hidden`}
                   >
                     <button
                       onClick={() => setExpandedPlayerId(expandedPlayerId === player.id ? null : player.id)}
@@ -222,11 +277,11 @@ export default function MyTeamPage() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center justify-between text-center gap-1">
                             <button
                               type="button"
                               onClick={(e) => goToPlayerProfile(e, player.id)}
-                              className={`text-sm font-semibold truncate text-left focus:outline-none ${
+                              className={`w-full text-sm font-semibold truncate text-center focus:outline-none ${
                                 player.is_substituted 
                                   ? "text-gray-400" 
                                   : captain?.id === player.id 
@@ -236,13 +291,13 @@ export default function MyTeamPage() {
                             >
                               {player.name}
                             </button>
-                            {!player.is_substituted && (
-                              <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            {player.is_substituted_in && (
+                              <svg className="w-4 h-4 text-green-500 flex-shrink-0 rotate-90" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 111.414 1.414L5.414 9l5.293 5.293a1 1 0 01-1.414 1.414l-6-6z" clipRule="evenodd" />
                               </svg>
                             )}
                             {player.is_substituted && (
-                              <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <svg className="w-4 h-4 text-red-500 flex-shrink-0 rotate-90" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 11-1.414-1.414L14.586 11l-5.293-5.293a1 1 0 011.414-1.414l6 6z" clipRule="evenodd" />
                               </svg>
                             )}
@@ -325,7 +380,7 @@ export default function MyTeamPage() {
                     <React.Fragment key={player.id}>
                       <tr
                         onClick={() => setExpandedPlayerId(expandedPlayerId === player.id ? null : player.id)}
-                        className={`border-b ${player.is_substituted ? "bg-gray-700 hover:bg-gray-600" : "border-gray-700 hover:bg-dark-500"} transition-colors cursor-pointer`}
+                        className={`border-b ${player.is_substituted ? "bg-gray-700 hover:bg-gray-600" : (TEAM_COLORS[player.team_name] ? `${TEAM_COLORS[player.team_name]} hover:opacity-90` : "border-gray-700 hover:bg-dark-500")} transition-colors cursor-pointer`}
                       >
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
@@ -353,7 +408,7 @@ export default function MyTeamPage() {
                               >
                                 {player.name}
                               </button>
-                              {!player.is_substituted && (
+                              {player.is_substituted_in && (
                                 <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 111.414 1.414L5.414 9l5.293 5.293a1 1 0 01-1.414 1.414l-6-6z" clipRule="evenodd" />
                                 </svg>
@@ -376,7 +431,7 @@ export default function MyTeamPage() {
                         </td>
                       </tr>
                       {expandedPlayerId === player.id && (
-                        <tr className={`border-b ${player.is_substituted ? "bg-gray-600" : "bg-dark-600"} ${player.is_substituted ? "border-gray-600" : "border-gray-700"}`}>
+                        <tr className={`border-b ${player.is_substituted ? "bg-gray-600" : (TEAM_COLORS[player.team_name] || "bg-dark-600")} ${player.is_substituted ? "border-gray-600" : "border-gray-700"}`}>
                           <td colSpan="3" className="py-4 px-4">
                             <div className="grid grid-cols-4 gap-4 max-w-md">
                               <div className={`${player.is_substituted ? "bg-gray-700" : "bg-dark-500"} rounded-lg p-3 text-center`}>

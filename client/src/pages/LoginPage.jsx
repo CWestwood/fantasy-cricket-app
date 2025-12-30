@@ -12,6 +12,7 @@ const Login = ({ onNavigate = () => {} }) => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   const handleEmailAuth = async (e) => {
     e.preventDefault();
@@ -24,6 +25,7 @@ const Login = ({ onNavigate = () => {} }) => {
         if (error) throw error;
         // On signup, Supabase may require email confirmation depending on settings.
         if (data?.user) {
+          setEmailSent(true);
           // If the user is signed in immediately, navigate to team selection
           navigate("/team");
         }
@@ -73,6 +75,14 @@ const Login = ({ onNavigate = () => {} }) => {
           </h1>
           <p className="text-sm text-gray-400">Fantasy Tournament</p>
         </header>
+
+        {emailSent && (
+          <div className="bg-blue-900 bg-opacity-80 border-l-4 border-blue-500 text-blue-100 p-4 rounded-xl shadow-sm">
+            <p className="text-sm leading-relaxed">
+              ✓ Check your email for authentication! Please verify your email to complete sign-up.
+            </p>
+          </div>
+        )}
 
         {/* Card */}
         <div className="bg-card-light rounded-2xl shadow-card px-4 py-4 sm:px-6 sm:py-6">

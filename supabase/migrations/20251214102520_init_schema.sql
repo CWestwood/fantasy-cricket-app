@@ -174,6 +174,15 @@ create table public.tournament_settings (
 
 alter table public.tournament_settings enable row level security;
 
+create policy "Authenticated users can view tournament settings"
+on public.tournament_settings
+for select
+to authenticated
+using (
+  true
+);
+
+
 --tournament_rounds
 create table public.tournament_rounds (
   id uuid not null default extensions.uuid_generate_v4 (),
@@ -304,29 +313,6 @@ create table public.teams (
 
 alter table public.teams enable row level security;
 
-create policy "Team owners can view their own teams"
-on "public"."teams"
-for select
-using (
-  auth.uid() = user_id
-);
-
-create policy "Team owners can update their own teams"
-on "public"."teams"
-for update
-using (
-  (auth.uid() = ( SELECT teams.user_id
-   FROM teams
-  WHERE (teams.id = teams.id)))
-);
-
-create policy "Team owners can insert new teams for themselves"
-on "public"."teams"
-for insert
-with check (
-  (auth.uid() = user_id)
-);
-
 create policy "Authenticated users can view all teams"
 ON "public"."teams"
 FOR SELECT
@@ -376,42 +362,24 @@ create table public.team_players (
   added_at timestamp with time zone null default now(),
   is_starter boolean not null default true,
   removed_at timestamp with time zone null,
+  is_locked boolean not null default false,
   constraint team_players_pkey primary key (id),
   constraint team_players_team_id_player_id_key unique (team_id, player_id),
   constraint team_players_player_id_fkey foreign KEY (player_id) references players (id),
   constraint team_players_team_id_fkey foreign KEY (team_id) references teams (id)
+
 ) TABLESPACE pg_default;
 
-alter table public.team_players enable row level security;
-create policy "Team owners can view their own team players"
-on "public"."team_players"
-for select
-to authenticated
-using (
-  (auth.uid() = ( SELECT teams.user_id
-   FROM teams
-  WHERE (teams.id = team_players.team_id)))
+
+create policy "Authenticated users can view all team players"
+ON "public"."team_players"
+FOR SELECT
+TO authenticated
+USING (
+  true
 );
 
-create policy "Team owners can modify their own team players"
-on "public"."team_players"  
-for update
-to authenticated
-using (
-  (auth.uid() = ( SELECT teams.user_id
-   FROM teams
-  WHERE (teams.id = team_players.team_id)))
-);
 
-create policy "Team owners can add players to their own teams"
-on "public"."team_players"  
-for insert
-to authenticated
-with check (
-  (auth.uid() = ( SELECT teams.user_id
-   FROM teams
-  WHERE (teams.id = team_players.team_id)))
-);
 
 create index IF not exists idx_team_players_team_player on public.team_players using btree (team_id, player_id) TABLESPACE pg_default;
 create index IF not exists idx_team_players_player_id on public.team_players using btree (player_id) TABLESPACE pg_default;

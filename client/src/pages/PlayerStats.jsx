@@ -39,6 +39,13 @@ const PlayerStats = () => {
 
   const roles = ["batter", "bowler", "allrounder", "wicketkeeper"];
 
+  // Simple in-memory cache (module-level) for playerRows per tournament
+  // Cache TTL in ms
+  const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  // store as { timestamp, rows }
+  if (!window.__playerStatsCache) window.__playerStatsCache = new Map();
+  const statsCache = window.__playerStatsCache;
+
   const toggleRole = (role) => {
     setSelectedRoles((prev) => {
       const updated = new Set(prev);
@@ -67,6 +74,32 @@ const PlayerStats = () => {
 
       setLoading(true);
       setError("");
+
+      // Try cache first (in-memory)
+      try {
+        const cacheEntry = statsCache.get(tournamentId);
+        if (cacheEntry && Date.now() - cacheEntry.timestamp < CACHE_TTL) {
+          setPlayerRows(cacheEntry.rows);
+          setLoading(false);
+          return;
+        }
+
+        // Try sessionStorage fallback
+        const ssKey = `playerStats:${tournamentId}`;
+        const ssRaw = sessionStorage.getItem(ssKey);
+        if (ssRaw) {
+          const parsed = JSON.parse(ssRaw);
+          if (parsed?.timestamp && Date.now() - parsed.timestamp < CACHE_TTL && parsed.rows) {
+            statsCache.set(tournamentId, { timestamp: parsed.timestamp, rows: parsed.rows });
+            setPlayerRows(parsed.rows);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (e) {
+        // ignore cache errors
+        console.warn("PlayerStats cache read error", e);
+      }
 
       try {
         const playersRes = await supabase
@@ -177,6 +210,18 @@ const PlayerStats = () => {
         });
 
         rows.sort((a, b) => b.totalScore - a.totalScore);
+        // store to cache
+        try {
+          statsCache.set(tournamentId, { timestamp: Date.now(), rows });
+          try {
+            sessionStorage.setItem(`playerStats:${tournamentId}`, JSON.stringify({ timestamp: Date.now(), rows }));
+          } catch (e) {
+            // ignore storage errors
+          }
+        } catch (e) {
+          // ignore
+        }
+
         setPlayerRows(rows);
       } catch (err) {
         console.error("PlayerStats: fetch error", err);

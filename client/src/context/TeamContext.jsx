@@ -15,6 +15,7 @@ export const TeamProvider = ({ children }) => {
   const [captain, setCaptain] = useState(null);
   const [teamName, setTeamName] = useState("");
   const [teamId, setTeamId] = useState(null);
+  const [isTeamLocked, setIsTeamLocked] = useState(false);
   const [substitutionsRemaining, setSubstitutionsRemaining] = useState(3);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
@@ -91,7 +92,7 @@ export const TeamProvider = ({ children }) => {
         // 1. Fetch the user's team for the current tournament
         const { data: teamData, error: teamError } = await supabase
           .from("teams")
-          .select("id, team_name, subs_used")
+          .select("id, team_name, subs_used, is_locked")
           .eq("user_id", user.id)
           .eq("tournament_id", tournamentId)
           .single();
@@ -103,6 +104,7 @@ export const TeamProvider = ({ children }) => {
           setTeamId(teamData.id);
           setTeamName(teamData.team_name);
           setSubstitutionsRemaining(3 - (teamData.subs_used || 0));
+          setIsTeamLocked(Boolean(teamData.is_locked));
 
           // 3. Fetch the full player objects for the players in that team
           const { data: teamPlayersData, error: playersError } = await supabase
@@ -367,6 +369,7 @@ export const TeamProvider = ({ children }) => {
     user,
     tournamentId,
     username,
+    isTeamLocked,
     setUsername,
     updateUserUsername,
     updateUserTeamName,

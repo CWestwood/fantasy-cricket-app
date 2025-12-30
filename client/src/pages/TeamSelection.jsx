@@ -28,7 +28,10 @@ export default function TeamSelection() {
   
   const teamsDropdownRef = useRef(null);
   const rpcCacheRef = useRef({ checked: false, rpcName: null });
+  const playerCacheRef = useRef({});
   const [allTeams, setAllTeams] = useState([]);
+  const [deadlineWarning, setDeadlineWarning] = useState("");
+  const [showDeadlineConfirm, setShowDeadlineConfirm] = useState(false);
 
   const {
     selectedPlayers,
@@ -39,12 +42,44 @@ export default function TeamSelection() {
     setTeamName,
     validateTeamComposition,
     validateTeamLimit,
-    saveTeam,
     user,
     tournamentId,
     username,
     setUsername,
   } = useTeam();
+
+  // Cache team selections to localStorage
+  useEffect(() => {
+    if (!tournamentId) return;
+    
+    const cacheKey = `fantasy-cricket-team-${tournamentId}`;
+    const teamCache = {
+      players: selectedPlayers.map(p => ({ id: p.id, name: p.name, role: p.role, team_name: p.team_name })),
+      captain: captain ? { id: captain.id, name: captain.name } : null,
+      teamName: teamName,
+      username: username,
+    };
+    
+    localStorage.setItem(cacheKey, JSON.stringify(teamCache));
+  }, [selectedPlayers, captain, teamName, username, tournamentId]);
+
+  // Load team selections from localStorage on mount
+  useEffect(() => {
+    if (!tournamentId) return;
+    
+    const cacheKey = `fantasy-cricket-team-${tournamentId}`;
+    const cached = localStorage.getItem(cacheKey);
+    
+    if (cached) {
+      try {
+        const teamCache = JSON.parse(cached);
+        if (teamCache.teamName) setTeamName(teamCache.teamName);
+        if (teamCache.username) setUsername(teamCache.username);
+      } catch (err) {
+        console.error("Failed to load team cache:", err);
+      }
+    }
+  }, [tournamentId]);
 
   // Load all teams upfront (independent of player pagination)
   useEffect(() => {
@@ -59,7 +94,6 @@ export default function TeamSelection() {
         if (!error && data) {
           const uniqueTeamList = [...new Set(data.map((p) => p.team_name))].sort();
           setAllTeams(uniqueTeamList);
-          console.log("Loaded all teams:", uniqueTeamList);
         }
       } catch (err) {
         console.error("Error loading teams:", err);
@@ -71,6 +105,41 @@ export default function TeamSelection() {
     }
   }, [tournamentId]);
 
+  useEffect(() => {
+    if (!tournamentId) return;
+
+    const checkDeadline = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("tournament_settings")
+          .select("team_selection_deadline, stage")
+          .eq("tournament_id", tournamentId)
+          .order("stage", { ascending: true })
+          .limit(1);
+
+        if (error) {
+          console.error("Failed to load deadline", error);
+          setDeadlineWarning("");
+          return;
+        }
+
+        const row = data?.[0];
+        const deadline = row?.team_selection_deadline;
+        if (deadline && new Date(deadline) < new Date()) {
+          const stageLabel = row?.stage ? `${row.stage} stage` : "current";
+          setDeadlineWarning(`The ${stageLabel} submission deadline has passed — new player picks may not earn points for matches already played.`);
+        } else {
+          setDeadlineWarning("");
+        }
+      } catch (err) {
+        console.error("Error checking deadline", err);
+        setDeadlineWarning("");
+      }
+    };
+
+    checkDeadline();
+  }, [tournamentId]);
+
   // Load available players from Supabase (only on initial mount or when tournament changes)
   useEffect(() => {
     const loadPlayers = async () => {
@@ -79,6 +148,14 @@ export default function TeamSelection() {
         return;
       }
       setLoading(true);
+
+      const cachedEntry = playerCacheRef.current[tournamentId];
+      if (cachedEntry) {
+        setAvailablePlayers(cachedEntry);
+        setError("");
+        setLoading(false);
+        return;
+      }
       try {
         const rpcParams = {
           p_tournament_id: tournamentId,
@@ -104,12 +181,10 @@ export default function TeamSelection() {
         // Detect and use cached RPC, or determine if RPCs are available
         let rpcResult = null;
         if (!rpcCacheRef.current.checked) {
-          console.log("Detecting available player RPCs...");
           const tryGeneric = await callRpc("get_available_players");
           if (!tryGeneric.error) {
             rpcCacheRef.current = { checked: true, rpcName: "get_available_players" };
             rpcResult = tryGeneric;
-            console.log("Detected RPC: get_available_players");
           } else {
             rpcCacheRef.current = { checked: true, rpcName: null };
             console.warn("get_available_players not found; will use direct players table query.");
@@ -129,7 +204,6 @@ export default function TeamSelection() {
 
         if (rpcResult && !rpcResult.error) {
           const { data } = rpcResult;
-          console.log(`RPC returned ${data?.length || 0} players`);
           // Keep original id for database FK, but ensure player_id is available
           const players = (data || []).map((p) => ({
             ...p,
@@ -137,6 +211,7 @@ export default function TeamSelection() {
           }));
           setAvailablePlayers(players);
           setError("");
+          playerCacheRef.current[tournamentId] = players;
           setLoading(false);
           return;
         }
@@ -161,6 +236,8 @@ export default function TeamSelection() {
           }));
           setAvailablePlayers(players);
           setError("");
+          playerCacheRef.current[tournamentId] = players;
+          setLoading(false);
         } else {
           console.error("Fallback query failed:", fallbackError);
           setError("Failed to load players");
@@ -169,7 +246,9 @@ export default function TeamSelection() {
         console.error("Error during fallback attempt:", fbErr);
         setError("Failed to load players");
       } finally {
-        setLoading(false);
+        if (!playerCacheRef.current[tournamentId]) {
+          setLoading(false);
+        }
       }
     };
 
@@ -278,10 +357,36 @@ useEffect(() => {
         return;
       }
 
-      console.log("Attempting to save team...");
+      if (!tournamentId) {
+        throw new Error("Tournament context not loaded yet");
+      }
 
-      await saveTeam(cleanUsername);
-      console.log("Team saved successfully");
+      if (selectedPlayers.length !== 11) {
+        throw new Error("Team must contain exactly 11 players");
+      }
+
+      if (!captain) {
+        throw new Error("Please select a captain before saving");
+      }
+
+      if (deadlineWarning && !showDeadlineConfirm) {
+        setShowDeadlineConfirm(true);
+        return;
+      }
+
+      const { error: rpcError } = await supabase.rpc("save_draft_team", {
+        p_tournament_id: tournamentId,
+        p_stage: "group",
+        p_team_name: teamName.trim(),
+        p_username: cleanUsername,
+        p_player_ids: selectedPlayers.map((player) => player.id),
+        p_captain_id: captain.id,
+      });
+
+      if (rpcError) {
+        throw rpcError;
+      }
+
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 5000);
     } catch (error) {
@@ -348,6 +453,61 @@ useEffect(() => {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Deadline Confirmation Modal */}
+        {showDeadlineConfirm && (
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className="absolute inset-0 bg-black opacity-50"></div>
+            <div className="bg-card-light rounded-lg p-6 max-w-md mx-4 relative z-10 border border-yellow-600">
+              <div className="text-center">
+                <svg
+                  className="mx-auto h-12 w-12 text-yellow-500 mb-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 9v2m0 4v2m0 6v-6M7.08 6.47a7 7 0 1 1 9.84 0"
+                  />
+                </svg>
+                <h3 className="text-lg font-bold text-white mb-3">
+                  Submit After Deadline?
+                </h3>
+                <p className="text-sm text-gray-300 mb-4">
+                  The submission deadline has passed. Players picked from now may not earn points for matches that have already been played. Do you want to continue?
+                </p>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => setShowDeadlineConfirm(false)}
+                    className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-full font-semibold transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDeadlineConfirm(false);
+                      handleSaveTeam();
+                    }}
+                    className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-full font-semibold transition-colors"
+                  >
+                    Continue Anyway
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {deadlineWarning && (
+          <div className="bg-yellow-900 bg-opacity-80 border-l-4 border-yellow-500 text-yellow-100 p-3 rounded-xl shadow-sm">
+            <p className="text-sm leading-relaxed">
+              {deadlineWarning}
+            </p>
           </div>
         )}
 
