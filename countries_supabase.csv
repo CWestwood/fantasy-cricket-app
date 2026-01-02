@@ -1,0 +1,244 @@
+sportsmonk_id,name,flag_url
+2,Poland,https://cdn.sportmonks.com/images/countries/png/short/pl.png
+5,Brazil,https://cdn.sportmonks.com/images/countries/png/short/br.png
+11,Germany,https://cdn.sportmonks.com/images/countries/png/short/de.png
+17,France,https://cdn.sportmonks.com/images/countries/png/short/fr.png
+20,Portugal,https://cdn.sportmonks.com/images/countries/png/short/pt.png
+23,Cote d'Ivoire,https://cdn.sportmonks.com/images/countries/png/short/ci.png
+26,Mali,https://cdn.sportmonks.com/images/countries/png/short/ml.png
+32,Spain,https://cdn.sportmonks.com/images/countries/png/short/es.png
+38,Netherlands,https://cdn.sportmonks.com/images/countries/png/short/nl.png
+41,Europe,https://cdn.sportmonks.com/images/countries/png/short/.png
+44,Argentina,https://cdn.sportmonks.com/images/countries/png/short/ar.png
+47,Sweden,https://cdn.sportmonks.com/images/countries/png/short/se.png
+62,Switzerland,https://cdn.sportmonks.com/images/countries/png/short/ch.png
+80,Chile,https://cdn.sportmonks.com/images/countries/png/short/cl.png
+86,Ukraine,https://cdn.sportmonks.com/images/countries/png/short/ua.png
+98,Australia,https://cdn.sportmonks.com/images/countries/png/short/au.png
+107,Iraq,https://cdn.sportmonks.com/images/countries/png/short/iq.png
+116,Cyprus,https://cdn.sportmonks.com/images/countries/png/short/cy.png
+119,Georgia,https://cdn.sportmonks.com/images/countries/png/short/ge.png
+122,Kosovo,https://cdn.sportmonks.com/images/countries/png/short/xk.png
+125,Greece,https://cdn.sportmonks.com/images/countries/png/short/gr.png
+143,Austria,https://cdn.sportmonks.com/images/countries/png/short/at.png
+146,South Africa,https://cdn.sportmonks.com/images/countries/png/short/za.png
+147,Africa,https://cdn.sportmonks.com/images/countries/png/short/.png
+155,Romania,https://cdn.sportmonks.com/images/countries/png/short/ro.png
+158,Uruguay,https://cdn.sportmonks.com/images/countries/png/short/uy.png
+200,Senegal,https://cdn.sportmonks.com/images/countries/png/short/sn.png
+212,Belarus,https://cdn.sportmonks.com/images/countries/png/short/by.png
+224,Bulgaria,https://cdn.sportmonks.com/images/countries/png/short/bg.png
+227,Russia,https://cdn.sportmonks.com/images/countries/png/short/ru.png
+245,Czech Republic,https://cdn.sportmonks.com/images/countries/png/short/cz.png
+251,Italy,https://cdn.sportmonks.com/images/countries/png/short/it.png
+266,Croatia,https://cdn.sportmonks.com/images/countries/png/short/hr.png
+275,Venezuela,https://cdn.sportmonks.com/images/countries/png/short/ve.png
+296,Serbia,https://cdn.sportmonks.com/images/countries/png/short/rs.png
+311,New Caledonia,https://cdn.sportmonks.com/images/countries/png/short/nc.png
+320,Denmark,https://cdn.sportmonks.com/images/countries/png/short/dk.png
+338,Peru,https://cdn.sportmonks.com/images/countries/png/short/pe.png
+353,Colombia,https://cdn.sportmonks.com/images/countries/png/short/co.png
+401,Slovakia,https://cdn.sportmonks.com/images/countries/png/short/sk.png
+404,Turkey,https://cdn.sportmonks.com/images/countries/png/short/tr.png
+455,Republic of Ireland,https://cdn.sportmonks.com/images/countries/png/short/ie.png
+458,Mexico,https://cdn.sportmonks.com/images/countries/png/short/mx.png
+459,Ecuador,https://cdn.sportmonks.com/images/countries/png/short/ec.png
+462,England,https://cdn.sportmonks.com/images/countries/png/short/gb.png
+468,Ghana,https://cdn.sportmonks.com/images/countries/png/short/gh.png
+479,Japan,https://cdn.sportmonks.com/images/countries/png/short/jp.png
+488,Iran,https://cdn.sportmonks.com/images/countries/png/short/ir.png
+491,Northern Ireland,https://cdn.sportmonks.com/images/countries/png/short/ie.png
+507,Bosnia and Herzegovina,https://cdn.sportmonks.com/images/countries/png/short/ba.png
+515,Wales,https://cdn.sportmonks.com/images/countries/png/short/wa.png
+556,Belgium,https://cdn.sportmonks.com/images/countries/png/short/be.png
+593,Cameroon,https://cdn.sportmonks.com/images/countries/png/short/cm.png
+607,Burkina Faso,https://cdn.sportmonks.com/images/countries/png/short/bf.png
+614,Algeria,https://cdn.sportmonks.com/images/countries/png/short/dz.png
+674,Hungary,https://cdn.sportmonks.com/images/countries/png/short/hu.png
+712,Korea Republic,https://cdn.sportmonks.com/images/countries/png/short/kr.png
+716,Nigeria,https://cdn.sportmonks.com/images/countries/png/short/ng.png
+719,Liberia,https://cdn.sportmonks.com/images/countries/png/short/lr.png
+748,Latvia,https://cdn.sportmonks.com/images/countries/png/short/lv.png
+772,Cape Verde Islands,https://cdn.sportmonks.com/images/countries/png/short/cv.png
+802,Israel,https://cdn.sportmonks.com/images/countries/png/short/il.png
+821,Burundi,https://cdn.sportmonks.com/images/countries/png/short/bi.png
+886,Egypt,https://cdn.sportmonks.com/images/countries/png/short/eg.png
+911,Angola,https://cdn.sportmonks.com/images/countries/png/short/ao.png
+919,Armenia,https://cdn.sportmonks.com/images/countries/png/short/am.png
+998,Montenegro,https://cdn.sportmonks.com/images/countries/png/short/me.png
+1004,Canada,https://cdn.sportmonks.com/images/countries/png/short/ca.png
+1040,Réunion,https://cdn.sportmonks.com/images/countries/png/short/re.png
+1161,Scotland,https://cdn.sportmonks.com/images/countries/png/short/scotland.png
+1176,Honduras,https://cdn.sportmonks.com/images/countries/png/short/hn.png
+1179,Kenya,https://cdn.sportmonks.com/images/countries/png/short/ke.png
+1190,Paraguay,https://cdn.sportmonks.com/images/countries/png/short/py.png
+1233,Finland,https://cdn.sportmonks.com/images/countries/png/short/fi.png
+1247,Central African Republic,https://cdn.sportmonks.com/images/countries/png/short/cf.png
+1320,Congo DR,https://cdn.sportmonks.com/images/countries/png/short/cd.png
+1424,Morocco,https://cdn.sportmonks.com/images/countries/png/short/ma.png
+1439,Tunisia,https://cdn.sportmonks.com/images/countries/png/short/tn.png
+1560,Congo,https://cdn.sportmonks.com/images/countries/png/short/cg.png
+1578,Norway,https://cdn.sportmonks.com/images/countries/png/short/no.png
+1638,Slovenia,https://cdn.sportmonks.com/images/countries/png/short/si.png
+1640,Jamaica,https://cdn.sportmonks.com/images/countries/png/short/jm.png
+1646,Madagascar,https://cdn.sportmonks.com/images/countries/png/short/mg.png
+1703,Guinea,https://cdn.sportmonks.com/images/countries/png/short/gn.png
+1707,Guinea-Bissau,https://cdn.sportmonks.com/images/countries/png/short/gw.png
+1739,Costa Rica,https://cdn.sportmonks.com/images/countries/png/short/cr.png
+1796,Iceland,https://cdn.sportmonks.com/images/countries/png/short/is.png
+1985,Guyana,https://cdn.sportmonks.com/images/countries/png/short/gy.png
+2079,Lithuania,https://cdn.sportmonks.com/images/countries/png/short/lt.png
+2088,Suriname,https://cdn.sportmonks.com/images/countries/png/short/sr.png
+2154,Faroe Islands,https://cdn.sportmonks.com/images/countries/png/short/fo.png
+2177,Haiti,https://cdn.sportmonks.com/images/countries/png/short/ht.png
+2228,Trinidad and Tobago,https://cdn.sportmonks.com/images/countries/png/short/tt.png
+2325,Zimbabwe,https://cdn.sportmonks.com/images/countries/png/short/zw.png
+2345,Moldova,https://cdn.sportmonks.com/images/countries/png/short/md.png
+2405,Estonia,https://cdn.sportmonks.com/images/countries/png/short/ee.png
+2426,Uzbekistan,https://cdn.sportmonks.com/images/countries/png/short/uz.png
+2427,Kazakhstan,https://cdn.sportmonks.com/images/countries/png/short/kz.png
+2453,Azerbaijan,https://cdn.sportmonks.com/images/countries/png/short/az.png
+2454,Albania,https://cdn.sportmonks.com/images/countries/png/short/al.png
+2493,Mauritania,https://cdn.sportmonks.com/images/countries/png/short/mr.png
+2507,Gambia,https://cdn.sportmonks.com/images/countries/png/short/gm.png
+2568,Zambia,https://cdn.sportmonks.com/images/countries/png/short/zm.png
+2756,Malta,https://cdn.sportmonks.com/images/countries/png/short/mt.png
+2802,United Arab Emirates,https://cdn.sportmonks.com/images/countries/png/short/ae.png
+2817,New Zealand,https://cdn.sportmonks.com/images/countries/png/short/nz.png
+2931,Andorra,https://cdn.sportmonks.com/images/countries/png/short/ad.png
+3039,Togo,https://cdn.sportmonks.com/images/countries/png/short/tg.png
+3126,Luxembourg,https://cdn.sportmonks.com/images/countries/png/short/lu.png
+3347,San Marino,https://cdn.sportmonks.com/images/countries/png/short/sm.png
+3374,Gibraltar,https://cdn.sportmonks.com/images/countries/png/short/gi.png
+3483,USA,https://cdn.sportmonks.com/images/countries/png/short/us.png
+3569,French Guiana,https://cdn.sportmonks.com/images/countries/png/short/gf.png
+3662,Gabon,https://cdn.sportmonks.com/images/countries/png/short/ga.png
+3677,Syria,https://cdn.sportmonks.com/images/countries/png/short/sy.png
+3779,Guadeloupe,https://cdn.sportmonks.com/images/countries/png/short/gp.png
+3990,Nicaragua,https://cdn.sportmonks.com/images/countries/png/short/ni.png
+3995,Malaysia,https://cdn.sportmonks.com/images/countries/png/short/my.png
+4125,Uganda,https://cdn.sportmonks.com/images/countries/png/short/ug.png
+4829,Mayotte,https://cdn.sportmonks.com/images/countries/png/short/yt.png
+5120,Martinique,https://cdn.sportmonks.com/images/countries/png/short/mq.png
+5618,China PR,https://cdn.sportmonks.com/images/countries/png/short/cn.png
+5724,Sierra Leone,https://cdn.sportmonks.com/images/countries/png/short/sl.png
+5790,Namibia,https://cdn.sportmonks.com/images/countries/png/short/na.png
+6783,Mozambique,https://cdn.sportmonks.com/images/countries/png/short/mz.png
+7091,Oman,https://cdn.sportmonks.com/images/countries/png/short/om.png
+7437,Curaçao,https://cdn.sportmonks.com/images/countries/png/short/cw.png
+7563,Somalia,https://cdn.sportmonks.com/images/countries/png/short/so.png
+7598,Bolivia,https://cdn.sportmonks.com/images/countries/png/short/bo.png
+7830,Benin,https://cdn.sportmonks.com/images/countries/png/short/bj.png
+11256,Swaziland,https://cdn.sportmonks.com/images/countries/png/short/sz.png
+12095,St. Lucia,https://cdn.sportmonks.com/images/countries/png/short/lc.png
+14837,Montserrat,https://cdn.sportmonks.com/images/countries/png/short/ms.png
+15326,Bermuda,https://cdn.sportmonks.com/images/countries/png/short/bm.png
+16175,Libya,https://cdn.sportmonks.com/images/countries/png/short/ly.png
+20802,Malawi,https://cdn.sportmonks.com/images/countries/png/short/mw.png
+21462,Kuwait,https://cdn.sportmonks.com/images/countries/png/short/kw.png
+21795,Liechtenstein,https://cdn.sportmonks.com/images/countries/png/short/li.png
+26833,Grenada,https://cdn.sportmonks.com/images/countries/png/short/gd.png
+33497,Barbados,https://cdn.sportmonks.com/images/countries/png/short/bb.png
+35008,El Salvador,https://cdn.sportmonks.com/images/countries/png/short/sv.png
+35185,Jersey,https://cdn.sportmonks.com/images/countries/png/short/je.png
+35210,Tanzania,https://cdn.sportmonks.com/images/countries/png/short/tz.png
+35376,Saudi Arabia,https://cdn.sportmonks.com/images/countries/png/short/sa.png
+37528,Cayman Islands,https://cdn.sportmonks.com/images/countries/png/short/ky.png
+38404,Sri Lanka,https://cdn.sportmonks.com/images/countries/png/short/lk.png
+39214,St. Vincent and the Grenadines,https://cdn.sportmonks.com/images/countries/png/short/vc.png
+41302,British Virgin Islands,https://cdn.sportmonks.com/images/countries/png/short/vg.png
+43321,Eritrea,https://cdn.sportmonks.com/images/countries/png/short/er.png
+43444,Afghanistan,https://cdn.sportmonks.com/images/countries/png/short/af.png
+44569,Aruba,https://cdn.sportmonks.com/images/countries/png/short/aw.png
+44983,Ethiopia,https://cdn.sportmonks.com/images/countries/png/short/et.png
+45412,Lebanon,https://cdn.sportmonks.com/images/countries/png/short/lb.png
+47329,Bonaire,https://cdn.sportmonks.com/images/countries/png/short/bq.png
+48946,Palestine,https://cdn.sportmonks.com/images/countries/png/short/ps.png
+49438,Kyrgyzstan,https://cdn.sportmonks.com/images/countries/png/short/kg.png
+49477,Thailand,https://cdn.sportmonks.com/images/countries/png/short/th.png
+50809,Philippines,https://cdn.sportmonks.com/images/countries/png/short/ph.png
+52126,Pakistan,https://cdn.sportmonks.com/images/countries/png/short/pk.png
+53128,Guatemala,https://cdn.sportmonks.com/images/countries/png/short/gt.png
+55408,Papua New Guinea,https://cdn.sportmonks.com/images/countries/png/short/pg.png
+56518,Sudan,https://cdn.sportmonks.com/images/countries/png/short/sd.png
+57142,Macedonia FYR,https://cdn.sportmonks.com/images/countries/png/short/mk.png
+57160,Tajikistan,https://cdn.sportmonks.com/images/countries/png/short/tj.png
+63604,Cuba,https://cdn.sportmonks.com/images/countries/png/short/cu.png
+64306,Hong Kong,https://cdn.sportmonks.com/images/countries/png/short/hk.png
+65053,Niger,https://cdn.sportmonks.com/images/countries/png/short/ne.png
+65437,Panama,https://cdn.sportmonks.com/images/countries/png/short/pa.png
+69697,Vietnam,https://cdn.sportmonks.com/images/countries/png/short/vn.png
+74505,Qatar,https://cdn.sportmonks.com/images/countries/png/short/qa.png
+75285,Monaco,https://cdn.sportmonks.com/images/countries/png/short/mc.png
+77505,Timor-Leste,https://cdn.sportmonks.com/images/countries/png/short/tl.png
+77580,Puerto Rico,https://cdn.sportmonks.com/images/countries/png/short/pr.png
+79146,Dominican Republic,https://cdn.sportmonks.com/images/countries/png/short/do.png
+80919,Bahamas,https://cdn.sportmonks.com/images/countries/png/short/bs.png
+83175,Turkmenistan,https://cdn.sportmonks.com/images/countries/png/short/tm.png
+86958,Tahiti,https://cdn.sportmonks.com/images/countries/png/short/.png
+88137,Rwanda,https://cdn.sportmonks.com/images/countries/png/short/rw.png
+88407,Indonesia,https://cdn.sportmonks.com/images/countries/png/short/id.png
+97374,Jordan,https://cdn.sportmonks.com/images/countries/png/short/jo.png
+97434,Saint Martin,https://cdn.sportmonks.com/images/countries/png/short/sx.png
+98799,Chad,https://cdn.sportmonks.com/images/countries/png/short/td.png
+99474,World,https://cdn.sportmonks.com/images/countries/png/short/.png
+137919,Antigua and Barbuda,https://cdn.sportmonks.com/images/countries/png/short/ag.png
+144816,Belize,https://cdn.sportmonks.com/images/countries/png/short/bz.png
+153732,India,https://cdn.sportmonks.com/images/countries/png/short/in.png
+155043,Bangladesh,https://cdn.sportmonks.com/images/countries/png/short/bd.png
+160047,St. Kitts and Nevis,https://cdn.sportmonks.com/images/countries/png/short/kn.png
+179748,São Tomé e Príncipe,https://cdn.sportmonks.com/images/countries/png/short/st.png
+190317,South Sudan,https://cdn.sportmonks.com/images/countries/png/short/ss.png
+190318,Yemen,https://cdn.sportmonks.com/images/countries/png/short/ye.png
+190321,Bahrain,https://cdn.sportmonks.com/images/countries/png/short/bh.png
+190324,International,https://cdn.sportmonks.com/images/countries/png/short/.png
+191038,Botswana,https://cdn.sportmonks.com/images/countries/png/short/bw.png
+201580,Maldives,https://cdn.sportmonks.com/images/countries/png/short/mv.png
+211975,Equatorial Guinea,https://cdn.sportmonks.com/images/countries/png/short/gq.png
+213370,Chinese Taipei,https://cdn.sportmonks.com/images/countries/png/short/tw.png
+213955,Singapore,https://cdn.sportmonks.com/images/countries/png/short/sg.png
+360931,Mauritius,https://cdn.sportmonks.com/images/countries/png/short/mu.png
+364678,Comoros,https://cdn.sportmonks.com/images/countries/png/short/km.png
+380155,Dominica,https://cdn.sportmonks.com/images/countries/png/short/dm.png
+390940,Isle of Man,https://cdn.sportmonks.com/images/countries/png/short/im.png
+453172,Macao,https://cdn.sportmonks.com/images/countries/png/short/mo.png
+482134,Lesotho,https://cdn.sportmonks.com/images/countries/png/short/ls.png
+705616,Turks and Caicos Islands,https://cdn.sportmonks.com/images/countries/png/short/tc.png
+862868,Nepal,https://cdn.sportmonks.com/images/countries/png/short/np.png
+866998,Fiji,https://cdn.sportmonks.com/images/countries/png/short/fj.png
+867004,Solomon Islands,https://cdn.sportmonks.com/images/countries/png/short/sb.png
+867012,Vanuatu,https://cdn.sportmonks.com/images/countries/png/short/vu.png
+867334,Samoa,https://cdn.sportmonks.com/images/countries/png/short/ws.png
+867648,Cook Islands,https://cdn.sportmonks.com/images/countries/png/short/ck.png
+868876,Zanzibar,https://cdn.sportmonks.com/images/countries/png/short/.png
+869895,Laos,https://cdn.sportmonks.com/images/countries/png/short/la.png
+870092,Anguilla,https://cdn.sportmonks.com/images/countries/png/short/ai.png
+870106,US Virgin Islands,https://cdn.sportmonks.com/images/countries/png/short/vg.png
+870933,Myanmar,https://cdn.sportmonks.com/images/countries/png/short/mm.png
+908783,Djibouti,https://cdn.sportmonks.com/images/countries/png/short/dj.png
+908860,Seychelles,https://cdn.sportmonks.com/images/countries/png/short/sc.png
+909440,Cambodia,https://cdn.sportmonks.com/images/countries/png/short/kh.png
+909526,Mongolia,https://cdn.sportmonks.com/images/countries/png/short/mn.png
+909582,American Samoa,https://cdn.sportmonks.com/images/countries/png/short/as.png
+909585,Tonga,https://cdn.sportmonks.com/images/countries/png/short/to.png
+910036,Guam,https://cdn.sportmonks.com/images/countries/png/short/gu.png
+911987,Bhutan,https://cdn.sportmonks.com/images/countries/png/short/bt.png
+913469,Brunei Darussalam,https://cdn.sportmonks.com/images/countries/png/short/bn.png
+1114524,Sint Maarten,https://cdn.sportmonks.com/images/countries/png/short/sx.png
+1442002,Korea DPR,https://cdn.sportmonks.com/images/countries/png/short/.png
+1884978,Guernsey,https://cdn.sportmonks.com/images/countries/png/short/gg.png
+3499960,Northern Mariana Islands,https://cdn.sportmonks.com/images/countries/png/short/.png
+9374632,Great Britain,https://cdn.sportmonks.com/images/countries/png/short/gb.png
+10203129,East Timor,https://cdn.sportmonks.com/images/countries/png/short/tl.png
+11240938,Asia,https://cdn.sportmonks.com/images/countries/png/short/.png
+11555657,South America,https://cdn.sportmonks.com/images/countries/png/short/.png
+12444275,Niuē,https://cdn.sportmonks.com/images/countries/png/short/nu.png
+14566098,Ireland Republic,https://cdn.sportmonks.com/images/countries/png/short/.png
+15288356,Northern Cyprus,https://cdn.sportmonks.com/images/countries/png/short/nc.png
+15629849,Federated States of Micronesia,https://cdn.sportmonks.com/images/countries/png/short/.png
+24143344,North & Central America,https://cdn.sportmonks.com/images/countries/png/short/.png
+24150873,West Indies,https://cdn.sportmonks.com/images/countries/png/short/westindies.png
+32533155,Eswatini,https://cdn.sportmonks.com/images/countries/png/short/sz.png
+34319255,Falkland Islands (Malvinas),https://cdn.sportmonks.com/images/countries/png/short/fk.png
+37176064,Tuvalu,https://cdn.sportmonks.com/images/countries/png/short/tv.png
+37200394,Kyrgyz Republic,https://cdn.sportmonks.com/images/countries/png/short/kg.png

@@ -103,6 +103,54 @@ async function sportsmonkTournamentDataSync() {
               continue;
             } else {
               console.log(`Successfully upserted match: ${match.id} ${matchRecord.team1} vs ${matchRecord.team2}`);
+
+              // --- new: ensure teams are recorded in tournament_teams ---
+              try {
+                const now = new Date().toISOString();
+                const teams = [];
+
+                if (match.localteam && match.localteam.id) {
+                  teams.push({
+                    tournament_league_id: tournament.league_id,
+                    tournament_stage_id: tournament.stage_id,
+                    tournament_season_id: tournament.season_id,
+                    team_id: match.localteam.id,
+                    team_name: match.localteam.name || null,
+                    created_at: now,
+                    updated_at: now
+                  });
+                }
+
+                if (match.visitorteam && match.visitorteam.id) {
+                  teams.push({
+                    tournament_league_id: tournament.league_id,
+                    tournament_stage_id: tournament.stage_id,
+                    tournament_season_id: tournament.season_id,
+                    team_id: match.visitorteam.id,
+                    team_name: match.visitorteam.name || null,
+                    created_at: now,
+                    updated_at: now
+                  });
+                }
+
+                if (teams.length > 0) {
+                  // Upsert by composite key to avoid duplicate entries if table has a matching unique constraint
+                  const { error: teamsError } = await supabase
+                    .from('tournament_teams')
+                    .upsert(teams, {
+                      onConflict: 'tournament_league_id,tournament_stage_id,tournament_season_id,team_id'
+                    });
+
+                  if (teamsError) {
+                    console.error(`Error upserting tournament_teams for match ${match.id}:`, teamsError);
+                  } else {
+                    console.log(`Tournament teams upserted for match ${match.id}`);
+                  }
+                }
+              } catch (teamsCatch) {
+                console.error(`Exception while upserting tournament_teams for match ${match.id}:`, teamsCatch);
+              }
+              // --- end new ---
             }
           } catch (matchError) {
             console.error(`Error processing match ${match.id}:`, matchError);
