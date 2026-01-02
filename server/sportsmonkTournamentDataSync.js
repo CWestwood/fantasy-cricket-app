@@ -143,7 +143,7 @@ async function sportsmonkTournamentDataSync() {
                 const { error: teamsError } = await supabase
                   .from('tournament_teams')
                   .upsert(teams, {
-                    onConflict: 'tournament_league_id,tournament_stage_id,tournament_season_id,team_id'
+                    onConflict: 'tournament_league_id,tournament_stage_id,tournament_season_id,sportsmonk_id'
                   });
 
                 if (teamsError) {
