@@ -15,7 +15,7 @@ async function sportsmonkGetSquadLists() {
   try {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const sportsmonkApiKey = process.env.SPORTSMONK_API_KEY;
+    const sportsmonkApiKey = process.env.SPORTSMONKS_API_KEY;
 
     if (!supabaseUrl || !supabaseKey || !sportsmonkApiKey) {
       throw new Error('Missing required environment variables');

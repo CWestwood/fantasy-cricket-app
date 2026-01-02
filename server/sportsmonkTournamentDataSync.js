@@ -15,7 +15,7 @@ async function sportsmonkTournamentDataSync() {
   try {
     const { data: tournaments, error: tournamentsError } = await supabase
       .from('tournaments')
-      .select('league_id, stage_id, season_id, name')
+      .select('league_id, stage_id, season_id, name, status')
       .in('status', ['upcoming', 'in progress']);
 
     if (tournamentsError) {
