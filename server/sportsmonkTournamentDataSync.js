@@ -178,3 +178,10 @@ async function sportsmonkTournamentDataSync() {
 
 // Export the function for GitHub Actions
 module.exports = sportsmonkTournamentDataSync;
+
+if (require.main === module) {
+  sportsmonkTournamentDataSync().catch(err => {
+    console.error('Fatal:', err);
+    process.exit(1);
+  });
+}
