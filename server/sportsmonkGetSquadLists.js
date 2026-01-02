@@ -140,7 +140,7 @@ async function sportsmonkGetSquadLists() {
                 // Update only changed/missing fields, keep existing uuid
                 squadData = {
                   ...existingPlayer,
-                  uuid: existingPlayer.uuid,
+                  id: existingPlayer.uuid,
                   sportsmonk_id: player.id,
                   name: playerName || existingPlayer.name,
                   team_name: teamName || apiData.data.name || existingPlayer.team_name,
@@ -153,7 +153,7 @@ async function sportsmonkGetSquadLists() {
 
               } else {
                 squadData = {
-                  uuid: uuidv4(),
+                  id: uuidv4(),
                   sportsmonk_id: player.id,
                   name: playerName,
                   team_name: teamName || apiData.data.name || null,
