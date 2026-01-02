@@ -90,7 +90,7 @@ async function sportsmonkTournamentDataSync() {
               team1: localTeam?.name || 'Unknown',
               team2: visitorTeam?.name || 'Unknown',
               location: match.venue?.name || null,
-              match_status: match.status,
+              status: match.status,
               match_note: match.note,
               currently_live: false,
               completed_and_captured: existingMatch?.completed_and_captured || false,
