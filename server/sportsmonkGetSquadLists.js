@@ -167,7 +167,7 @@ async function sportsmonkGetSquadLists() {
 
               const { error: upsertError } = await supabase
                 .from('squads')
-                .upsert(squadData, { onConflict: 'sportsmonk_id,tournament_id' });
+                .upsert(squadData, { onConflict: 'tournament_league_id,tournament_stage_id,tournament_season_id,sportsmonk_id, team_name' });
 
               if (upsertError) {
                 console.error(`Error upserting squad player ${playerName} (${player.id}):`, upsertError);
