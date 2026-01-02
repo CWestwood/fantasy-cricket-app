@@ -120,7 +120,7 @@ async function sportsmonkTournamentDataSync() {
                   tournament_league_id: tournament.league_id,
                   tournament_stage_id: tournament.stage_id,
                   tournament_season_id: tournament.season_id,
-                  team_id: localTeam.id, // FIX: Changed from sportsmonk_id to team_id
+                  sportsmonk_id: localTeam.id, 
                   team_name: localTeam.name || null,
                   created_at: now,
                   updated_at: now
@@ -132,7 +132,7 @@ async function sportsmonkTournamentDataSync() {
                   tournament_league_id: tournament.league_id,
                   tournament_stage_id: tournament.stage_id,
                   tournament_season_id: tournament.season_id,
-                  team_id: visitorTeam.id, // FIX: Consistent naming
+                  sportsmonk_id: visitorTeam.id, 
                   team_name: visitorTeam.name || null,
                   created_at: now,
                   updated_at: now
