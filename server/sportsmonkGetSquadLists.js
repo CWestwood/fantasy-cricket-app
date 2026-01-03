@@ -158,6 +158,7 @@ async function sportsmonkGetSquadLists() {
                   tournament_league_id: tournament.league_id,
                   tournament_season_id: tournament.season_id,
                   tournament_id: tournament.id,
+                  team_id: teamId,
                   updated_at: new Date().toISOString()
                 };
 
@@ -174,6 +175,7 @@ async function sportsmonkGetSquadLists() {
                   tournament_league_id: tournament.league_id,
                   tournament_season_id: tournament.season_id,
                   tournament_id: tournament.id,
+                  team_id: teamId,
                   updated_at: new Date().toISOString()
                 };
               }

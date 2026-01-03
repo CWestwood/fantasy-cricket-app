@@ -36,3 +36,26 @@ CREATE TRIGGER trg_normalize_player_role
 BEFORE INSERT OR UPDATE ON players
 FOR EACH ROW
 EXECUTE FUNCTION normalize_player_role();
+
+CREATE OR REPLACE FUNCTION set_squad_country_name()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Only attempt lookup if country_id is present
+  IF NEW.country_id IS NOT NULL THEN
+    SELECT c.name
+    INTO NEW.country_name
+    FROM countries c
+    WHERE c.sportsmonk_id = NEW.country_id
+    LIMIT 1;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_set_squad_country_name
+BEFORE INSERT OR UPDATE ON squads
+FOR EACH ROW
+EXECUTE FUNCTION set_squad_country_name();
