@@ -79,7 +79,7 @@ async function syncMatchData() {
         console.log(`Successfully fetched scorecard data for ${match.type_match} match ${match.id}`);
 
         // Check if scorecard data exists
-        if (!apiData.data || !apiData.data.battings || apiData.data.battings.length === 0 || !apiData.data.bowling || apiData.data.bowling.length === 0) {
+        if (!apiData.data || !apiData.data.batting || apiData.data.batting.length === 0 || !apiData.data.bowling || apiData.data.bowling.length === 0) {
           console.log(`No scorecard data found for match ${match.id}`);
           await logger.logNoScorecard(match.id);
           continue;
