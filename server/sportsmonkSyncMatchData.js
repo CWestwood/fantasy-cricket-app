@@ -262,7 +262,7 @@ async function syncMatchData() {
                 match.tournament_id, 
                 supabase, 
                 cricketApiKey,
-                battingEntry.team_id
+                bowlingEntry.team_id
                 );
 
                 if (!currentSupabasePlayerId) {
@@ -395,7 +395,7 @@ async function syncMatchData() {
             match.tournament_id, 
             supabase, 
             cricketApiKey,
-            battingEntry.team_id
+            null
             );
 
             if (!currentSupabasePlayerId) {
