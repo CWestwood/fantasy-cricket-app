@@ -7,17 +7,16 @@ async function allocatePoints() {
     // Initialize Supabase client
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const cricketApiKey = process.env.CRICKET_API_KEY;
 
-    if (!supabaseUrl || !supabaseKey || !cricketApiKey) {
+    if (!supabaseUrl || !supabaseKey ) {
       throw new Error('Missing required environment variables');
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    console.log('✅ Supabase client initialized successfully');
+    console.log('Supabase client initialized successfully');
 
     // Step 1: Query performances that need points allocated
-    console.log('🔍 Querying performances with status = "completed" and points_allocated = false...');
+    console.log('Querying performances with status = "completed" and points_allocated = false...');
     
     const { data: performances, error: performanceError } = await supabase
       .from('match_data')
@@ -26,20 +25,20 @@ async function allocatePoints() {
       .eq('points_allocated', false);
 
     if (performanceError) {
-      console.error('❌ Error fetching match data:', performanceError);
+      console.error('Error fetching match data:', performanceError);
       throw performanceError;
     }
 
     if (!performances || performances.length === 0) {
-      console.log('ℹ️ No players found that need points allocated');
+      console.log('ℹNo players found that need points allocated');
       return;
     }
 
-    console.log(`✅ Found ${performances.length} performances to process`);
+    console.log(`Found ${performances.length} performances to process`);
 
     // Step 2: Process each performance
     for (const performance of performances) {
-      console.log(`\n🎯 Processing performance for ${performance.player_name}`);
+      console.log(`Processing performance for ${performance.player_name}`);
       
       // Get points config for this tournament
       const { data: pointsConfig, error: configError } = await supabase
@@ -49,16 +48,16 @@ async function allocatePoints() {
         .single();
 
       if (configError) {
-        console.error('❌ Error fetching points config:', configError);
+        console.error('Error fetching points config:', configError);
         continue; 
       }
 
       if (!pointsConfig) {
-        console.log('ℹ️ No points config found for this tournament');
+        console.log('No points config found for this tournament');
         continue;
       }
 
-      console.log('✅ Points config found for tournament');
+      console.log('Points config found for tournament');
 
       // Calculate derived values
       const runs = performance.batting_runs || 0;
@@ -161,9 +160,9 @@ async function allocatePoints() {
         });
 
       if (upsertError) {
-        console.error(`❌ Error upserting player ${performance.player_name} (${performance.id}):`, upsertError);
+        console.error(`Error upserting player ${performance.player_name} (${performance.id}):`, upsertError);
       } else {
-        console.log(`✅ Successfully upserted player: ${performance.player_name} - ${performance.match_id}`);
+        console.log(`Successfully upserted player: ${performance.player_name} - ${performance.match_id}`);
         
         // Mark performance as points allocated
         const { error: updateError } = await supabase
@@ -177,10 +176,10 @@ async function allocatePoints() {
       }
     }
 
-    console.log('\n🎉 Points allocation completed successfully');
+    console.log('Points allocation completed successfully');
 
   } catch (error) {
-    console.error('❌ Fatal error in allocatePoints:', error);
+    console.error('Fatal error in allocatePoints:', error);
     throw error;
   }
 }
@@ -191,11 +190,11 @@ module.exports = allocatePoints;
 if (require.main === module) {
   allocatePoints()
     .then(() => {
-      console.log('✅ Script completed successfully');
+      console.log('Script completed successfully');
       process.exit(0);
     })
     .catch((error) => {
-      console.error('❌ Script failed:', error);
+      console.error('Script failed:', error);
       process.exit(1);
     });
 }
