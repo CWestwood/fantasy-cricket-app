@@ -113,14 +113,20 @@ async function sportsmonkGetSquadLists() {
           for (const player of players) {
             try {
               // Find existing squad record
-              const { data: existingPlayer, error: fetchError } = await supabase
+              // Build query and include team_name if available so we resolve the exact per-team record
+              let query = supabase
                 .from('squads')
                 .select('*')
                 .eq('sportsmonk_id', player.id)
                 .eq('tournament_season_id', tournament.season_id)
                 .eq('tournament_league_id', tournament.league_id)
-                .eq('tournament_stage_id', tournament.stage_id)
-                .single();
+                .eq('tournament_stage_id', tournament.stage_id);
+
+              if (teamName) {
+                query = query.eq('team_name', teamName);
+              }
+
+              const { data: existingPlayer, error: fetchError } = await query.single();
 
               if (fetchError && fetchError.code !== 'PGRST116') {
                 console.error('Error checking existing squad player:', fetchError);
@@ -140,13 +146,14 @@ async function sportsmonkGetSquadLists() {
                 // Update only changed/missing fields, keep existing uuid
                 squadData = {
                   ...existingPlayer,
-                  id: existingPlayer.uuid,
+                  // preserve DB UUID column (id) if present; fallback to any legacy uuid field
+                  id: existingPlayer.id || existingPlayer.uuid || existingPlayer._id,
                   sportsmonk_id: player.id,
                   name: playerName || existingPlayer.name,
                   team_name: teamName || apiData.data.name || existingPlayer.team_name,
-                  country_name: existingPlayer.country_name || null,
-                  country_id: player.country_id ?? existingPlayer.country_id,
-                  role: role || existingPlayer.role,
+                  country_name: existingPlayer.country_name ?? null,
+                  country_id: player.country_id ?? existingPlayer.country_id ?? null,
+                  role: role ?? existingPlayer.role ?? null,
                   tournament_stage_id: tournament.stage_id,
                   tournament_league_id: tournament.league_id,
                   tournament_season_id: tournament.season_id,
@@ -171,9 +178,10 @@ async function sportsmonkGetSquadLists() {
                 };
               }
 
+              // ensure composite conflict target matches DB constraint exactly (no stray spaces)
               const { error: upsertError } = await supabase
                 .from('squads')
-                .upsert(squadData, { onConflict: 'tournament_league_id,tournament_stage_id,tournament_season_id,sportsmonk_id, team_name' });
+                .upsert(squadData, { onConflict: 'tournament_league_id,tournament_stage_id,tournament_season_id,sportsmonk_id,team_name' });
 
               if (upsertError) {
                 console.error(`Error upserting squad player ${playerName} (${player.id}):`, upsertError);
