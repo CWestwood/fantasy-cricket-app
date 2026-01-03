@@ -28,7 +28,7 @@ async function sportsmonkGetSquadLists() {
     // Get tournaments with status upcoming or in progress
     const { data: tournaments, error: tournamentsError } = await supabase
       .from('tournaments')
-      .select('league_id, season_id, stage_id, name')
+      .select('id,league_id, season_id, stage_id, name')
       .in('status', ['upcoming', 'in progress']);
 
     if (tournamentsError) {

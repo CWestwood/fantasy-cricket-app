@@ -15,7 +15,7 @@ async function sportsmonkTournamentDataSync() {
   try {
     const { data: tournaments, error: tournamentsError } = await supabase
       .from('tournaments')
-      .select('league_id, stage_id, season_id, name, status')
+      .select('id, league_id, stage_id, season_id, name, status')
       .in('status', ['upcoming', 'in progress']);
 
     if (tournamentsError) {
@@ -81,12 +81,14 @@ async function sportsmonkTournamentDataSync() {
 
             const matchRecord = {
               sportsmonk_id: match.id,
+              tournament_id: tournament.id,
               tournament_league_id: tournament.league_id,
               tournament_stage_id: tournament.stage_id,
               tournament_season_id: tournament.season_id,
               type_match: match.type,
               match_date: matchDate,
               match_time: matchDateTime.toISOString(),
+              match_name: localTeam && visitorTeam ? `${localTeam.name} vs ${visitorTeam.name}` : 'Unknown vs Unknown',
               team1: localTeam?.name || 'Unknown',
               team2: visitorTeam?.name || 'Unknown',
               location: match.venue?.name || null,
@@ -117,6 +119,7 @@ async function sportsmonkTournamentDataSync() {
 
               if (localTeam?.id) {
                 teams.push({
+                  tournament_id: tournament.id,
                   tournament_league_id: tournament.league_id,
                   tournament_stage_id: tournament.stage_id,
                   tournament_season_id: tournament.season_id,
@@ -129,6 +132,7 @@ async function sportsmonkTournamentDataSync() {
 
               if (visitorTeam?.id) {
                 teams.push({
+                  tournament_id: tournament.id,
                   tournament_league_id: tournament.league_id,
                   tournament_stage_id: tournament.stage_id,
                   tournament_season_id: tournament.season_id,
