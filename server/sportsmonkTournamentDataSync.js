@@ -37,12 +37,11 @@ async function sportsmonkTournamentDataSync() {
 
       try {
         // FIX: Use actual tournament IDs from the database
-        // use lowercase include names expected by the API: localteam, visitorteam, venue
-        const apiTokenEnc = encodeURIComponent(sportsmonkApiKey);
-        const apiUrl = `https://cricket.sportmonks.com/api/v2.0/fixtures?api_token=${apiTokenEnc}&filter[league_id]=${tournament.league_id}&filter[season_id]=${tournament.season_id}&include=localteam,visitorteam,venue`;
+        const apiUrl = `https://cricket.sportmonks.com/api/v2.0/fixtures?api_token=${encodeURIComponent(
+          sportsmonkApiKey
+        )}&filter[league_id]=${tournament.league_id}&filter[season_id]=${tournament.season_id}&include=localTeam,visitorTeam,venue`;
 
-        // mask the encoded token when logging
-        console.log(`Fetching data from: ${apiUrl.replace(apiTokenEnc, '***')}`);
+        console.log(`Fetching data from: ${apiUrl.replace(sportsmonkApiKey, '***')}`);
 
         const response = await fetch(apiUrl);
         if (!response.ok) {
@@ -76,9 +75,9 @@ async function sportsmonkTournamentDataSync() {
               throw existingMatchError;
             }
 
-            // FIX: Case-sensitive/property-name variants from API
-            const localTeam = match.localteam || match.localTeam || match.localteam?.data || null;
-            const visitorTeam = match.visitorteam || match.visitorTeam || match.visitorteam?.data || null;
+            // FIX: Case-sensitive property names from API
+            const localTeam = match.localTeam || match.localteam;
+            const visitorTeam = match.visitorTeam || match.visitorteam;
 
             const matchRecord = {
               sportsmonk_id: match.id,
@@ -93,8 +92,6 @@ async function sportsmonkTournamentDataSync() {
               match_name: localTeam && visitorTeam ? `${localTeam.name} vs ${visitorTeam.name}` : 'Unknown vs Unknown',
               team1: localTeam?.name || 'Unknown',
               team2: visitorTeam?.name || 'Unknown',
-              // include venue id as well to ensure location/venue fields are captured
-              venue_id: match.venue?.id || match.venue_id || null,
               location: match.venue?.name || null,
               status: match.status,
               match_note: match.note,
