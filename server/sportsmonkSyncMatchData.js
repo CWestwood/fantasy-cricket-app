@@ -87,7 +87,7 @@ async function syncMatchData() {
 
         // Determine match status
         const matchStatus = apiData.data.status && apiData.data.status !== 'NS' 
-          ? (apiData.data.winner_team_id ? 'completed' : 'live')
+          ? (apiData.data.winner_team_id ? 'Finished' : 'live')
           : 'live';
 
         console.log(`Processing scorecard data for match ${match.match_name} (Status: ${matchStatus})`);
@@ -480,7 +480,7 @@ async function syncMatchData() {
                 );
                 stats.errors++;
             } else {
-                console.log(`✅ Successfully awarded POTM to player ${potmPlayerId}`);
+                console.log(`Successfully awarded POTM to player ${potmPlayerId}`);
                 await logger.logPlayerProcessing(
                 'upsert POTM',
                 `Player ${potmPlayerId}`,
@@ -493,7 +493,7 @@ async function syncMatchData() {
             }
 
         } catch (potmError) {
-            console.error(`❌ Error processing Player of the Match:`, potmError);
+            console.error(`Error processing Player of the Match:`, potmError);
             await logger.logError('process_potm', potmError, {
             match_id: match.id,
             man_of_match_id: apiData.data.man_of_match_id
@@ -501,12 +501,12 @@ async function syncMatchData() {
             stats.errors++;
         }
         } else {
-        console.log(`ℹ️ No Player of the Match awarded for this match`);
+        console.log(`No Player of the Match awarded for this match`);
         }
 
         // Process fielding data
         // Derive fielding stats from batting data dismissals
-        console.log(`⚾ Processing fielding data from batting dismissals...`);
+        console.log(`Processing fielding data from batting dismissals...`);
 
         if (apiData.data.batting && apiData.data.batting.length > 0) {
         for (const battingEntry of apiData.data.batting) {
@@ -612,7 +612,7 @@ async function syncMatchData() {
                 });
 
                 if (upsertError) {
-                console.error(`❌ Error upserting ${fieldingType} for player ${fielderId}:`, upsertError);
+                console.error(`Error upserting ${fieldingType} for player ${fielderId}:`, upsertError);
                 await logger.logPlayerProcessing(
                     `upsert ${fieldingType}`,
                     `Player ${fielderId}`,
@@ -622,7 +622,7 @@ async function syncMatchData() {
                 );
                 stats.errors++;
                 } else {
-                console.log(`✅ Successfully upserted ${fieldingType}: Player ${fielderId}`);
+                console.log(`uccessfully upserted ${fieldingType}: Player ${fielderId}`);
                 await logger.logPlayerProcessing(
                     `upsert ${fieldingType}`,
                     `Player ${fielderId}`,
