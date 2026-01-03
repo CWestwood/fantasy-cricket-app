@@ -147,6 +147,9 @@ async function sportsmonkGetSquadLists() {
                   country_name: existingPlayer.country_name || null,
                   country_id: player.country_id ?? existingPlayer.country_id,
                   role: role || existingPlayer.role,
+                  tournament_stage_id: tournament.stage_id,
+                  tournament_league_id: tournament.league_id,
+                  tournament_season_id: tournament.season_id,
                   tournament_id: tournament.id,
                   updated_at: new Date().toISOString()
                 };
@@ -160,6 +163,9 @@ async function sportsmonkGetSquadLists() {
                   country_name: null,
                   country_id: player.country_id ?? null,
                   role: role,
+                  tournament_stage_id: tournament.stage_id,
+                  tournament_league_id: tournament.league_id,
+                  tournament_season_id: tournament.season_id,
                   tournament_id: tournament.id,
                   updated_at: new Date().toISOString()
                 };

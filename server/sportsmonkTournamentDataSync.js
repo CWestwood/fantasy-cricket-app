@@ -39,7 +39,7 @@ async function sportsmonkTournamentDataSync() {
         // FIX: Use actual tournament IDs from the database
         const apiUrl = `https://cricket.sportmonks.com/api/v2.0/fixtures?api_token=${encodeURIComponent(
           sportsmonkApiKey
-        )}&filter[league_id]=${tournament.league_id}&filter[season_id]=${tournament.season_id}&include=localTeam,visitorTeam`;
+        )}&filter[league_id]=${tournament.league_id}&filter[season_id]=${tournament.season_id}&include=localTeam,visitorTeam,venue`;
 
         console.log(`Fetching data from: ${apiUrl.replace(sportsmonkApiKey, '***')}`);
 
