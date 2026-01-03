@@ -14,7 +14,7 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      CRICKET_API_KEY: ${{ secrets.CRICKET_API_KEY }}
+      SPORTSMONKS_API_KEY: ${{ secrets.SPORTSMONKS_API_KEY }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,8 +27,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run syncCompletedMatchData.js
-        run: node syncCompletedMatchData.js
+      - name: Run sportsmonkSyncMatchData.js
+        run: node sportsmonkSyncMatchData.js
 
       - name: Run points_allocation.js
         run: node points_allocation.js
