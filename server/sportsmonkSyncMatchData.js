@@ -55,7 +55,7 @@ async function syncMatchData() {
     for (const match of matches) {
       await logger.logMatchStart(match);
       stats.matches_processed ++;
-      console.log(`\n🏏 Processing match: ${match.match_name} (ID: ${match.id})`);
+      console.log(`Processing match: ${match.match_name} (ID: ${match.id})`);
 
       const playersProcessedThisMatch = new Set();
 
@@ -348,7 +348,7 @@ async function syncMatchData() {
                 });
 
                 if (upsertError) {
-                console.error(`❌ Error upserting bowling data for player ${bowlingEntry.player_id}:`, upsertError);
+                console.error(`Error upserting bowling data for player ${bowlingEntry.player_id}:`, upsertError);
                 await logger.logPlayerProcessing(
                     'upsert bowling data',
                     `Player ${bowlingEntry.player_id}`,
@@ -358,7 +358,7 @@ async function syncMatchData() {
                 );
                 stats.errors++;
                 } else {
-                console.log(`✅ Successfully upserted bowling data: Player ${bowlingEntry.player_id} - ${bowlingEntry.wickets} wickets`);
+                console.log(`Successfully upserted bowling data: Player ${bowlingEntry.player_id} - ${bowlingEntry.wickets} wickets`);
                 await logger.logPlayerProcessing(
                     'upsert bowling data',
                     `Player ${bowlingEntry.player_id}`,
@@ -372,7 +372,7 @@ async function syncMatchData() {
                 }
 
             } catch (bowlingError) {
-                console.error(`❌ Error processing bowling data for player ${bowlingEntry.player_id}:`, bowlingError);
+                console.error(`Error processing bowling data for player ${bowlingEntry.player_id}:`, bowlingError);
                 await logger.logError('process_bowling', bowlingError, {
                 match_id: match.id,
                 player_id: bowlingEntry.player_id
@@ -384,7 +384,7 @@ async function syncMatchData() {
         }
 
         if (apiData.data.man_of_match_id) {
-        console.log(`🏆 Processing Player of the Match...`);
+        console.log(`Processing Player of the Match...`);
         
         try {
             const potmPlayerId = apiData.data.man_of_match_id;
@@ -470,7 +470,7 @@ async function syncMatchData() {
                 });
 
             if (upsertError) {
-                console.error(`❌ Error upserting POTM for player ${potmPlayerId}:`, upsertError);
+                console.error(`Error upserting POTM for player ${potmPlayerId}:`, upsertError);
                 await logger.logPlayerProcessing(
                 'upsert POTM',
                 `Player ${potmPlayerId}`,
@@ -622,7 +622,7 @@ async function syncMatchData() {
                 );
                 stats.errors++;
                 } else {
-                console.log(`uccessfully upserted ${fieldingType}: Player ${fielderId}`);
+                console.log(`Successfully upserted ${fieldingType}: Player ${fielderId}`);
                 await logger.logPlayerProcessing(
                     `upsert ${fieldingType}`,
                     `Player ${fielderId}`,
@@ -637,7 +637,7 @@ async function syncMatchData() {
             }
 
             } catch (fieldingError) {
-            console.error(`❌ Error processing fielding data:`, fieldingError);
+            console.error(`Error processing fielding data:`, fieldingError);
             await logger.logError('process_fielding', fieldingError, {
                 match_id: match.id,
                 player_id: battingEntry.player_id
@@ -684,9 +684,9 @@ async function syncMatchData() {
             });
             
           if (updateError) {
-            console.error(`❌ Error updating match completion status:`, updateError);
+            console.error(`Error updating match completion status:`, updateError);
           } else {
-            console.log(`✅ Marked match as completed and captured: ${match.match_name}`);
+            console.log(`Marked match as completed and captured: ${match.match_name}`);
           }
 
           if (deleteError1) {
@@ -712,7 +712,7 @@ async function syncMatchData() {
         await logger.logMatchComplete(match, matchStatus, matchStats);
 
       } catch (matchError) {
-        console.error(`❌ Error processing match ${match.id}:`, matchError);
+        console.error(`Error processing match ${match.id}:`, matchError);
         await logger.logError('process_match', matchError, {
           match_id: match.id,
           match_name: match.match_name
@@ -721,11 +721,11 @@ async function syncMatchData() {
       }
     }
 
-    console.log('\n🎉 Match data sync completed successfully');
+    console.log('Match data sync completed successfully');
     await logger.logSyncComplete(stats);
 
   } catch (error) {
-    console.error('❌ Fatal error in syncMatchData:', error);
+    console.error('Fatal error in syncMatchData:', error);
     await logger.logError('sync_match_data', error);
     throw error;
   }
@@ -752,7 +752,7 @@ async function getOrCreatePlayer(playerId, tournamentId, supabase, cricketApiKey
   const playerResponse = await fetch(playerUrl);
 
   if (!playerResponse.ok) {
-    console.log(`❌ Cricket API request failed for player ${playerId}`);
+    console.log(`Cricket API request failed for player ${playerId}`);
     return null;
   }
 

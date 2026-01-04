@@ -2,8 +2,8 @@ create table public.substitutions (
   id uuid primary key,
   team_id uuid references teams not null,
   tournament_id uuid references tournaments not null,
-  player_out_id uuid references players not null,
-  player_in_id uuid references players not null,
+  player_out_id uuid references squads not null,
+  player_in_id uuid references squads not null,
   status text, -- 'pending', 'completed', 'failed'
   requested_at timestamp,
   processed_at timestamp
@@ -88,40 +88,46 @@ BEGIN
     /*
      * 3. Country of incoming/updated player
      */
-    SELECT country_id
-    INTO v_player_country_id
-    FROM players
-    WHERE id = NEW.player_id;
+   SELECT c.id
+   INTO v_player_country_id
+   FROM squads s
+   JOIN countries c
+   ON c.sportsmonk_id = s.country_id
+   WHERE s.id = NEW.player_id;
 
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Invalid player_id %', NEW.player_id;
-    END IF;
+   IF NOT FOUND THEN
+    RAISE EXCEPTION
+        'No country found for player %, sportsmonk country_id %',
+        NEW.player_id,
+        (SELECT country_id FROM squads WHERE id = NEW.player_id);
+   END IF;
 
-    /*
+     /*
      * 4. Build the FINAL active team state
      *
      * This dataset represents what the team would look like
      * AFTER this row is applied.
      */
     WITH active_team AS (
-        SELECT
-            tp.id,
-            p.country_id,
-            tp.is_captain
-        FROM team_players tp
-        JOIN players p ON p.id = tp.player_id
-        WHERE tp.team_id = NEW.team_id
-          AND tp.is_substituted = false
-          AND tp.id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000')
-    )
     SELECT
-        COUNT(*)                                               AS active_count,
-        COUNT(*) FILTER (WHERE country_id = v_player_country_id) AS country_count,
-        COUNT(*) FILTER (WHERE is_captain = true)                AS captain_count
-    INTO
-        v_active_count,
-        v_country_count,
-        v_captain_count
+        tp.id,
+        c.id AS country_id,   -- UUID, not integer
+        tp.is_captain
+    FROM team_players tp
+    JOIN squads s ON s.id = tp.player_id
+    JOIN countries c ON c.sportsmonk_id = s.country_id
+    WHERE tp.team_id = NEW.team_id
+      AND tp.is_substituted = false
+      AND tp.id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000')
+)
+SELECT
+    COUNT(*)                                                   AS active_count,
+    COUNT(*) FILTER (WHERE country_id = v_player_country_id)  AS country_count,
+    COUNT(*) FILTER (WHERE is_captain = true)                 AS captain_count
+INTO
+    v_active_count,
+    v_country_count,
+    v_captain_coun
     FROM active_team;
 
     /*
@@ -163,3 +169,9 @@ BEGIN
     RETURN NEW;
 END;
 $function$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_countries_sportsmonk_id
+ON countries (sportsmonk_id);
+
+CREATE INDEX IF NOT EXISTS idx_squads_country_id
+ON squads (country_id);

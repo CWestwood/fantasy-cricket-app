@@ -193,8 +193,8 @@ BEGIN
     p.id AS player_id,
     p.name,
     p.role,
-    p.country_id,
-    p.country_name,
+    c.id AS country_id,
+    c.name AS country_name,
     p.team_name,
     COALESCE(pc.cnt, 0) AS picks_count,
     EXISTS (
@@ -205,17 +205,18 @@ BEGIN
         AND t2.tournament_id = p_tournament_id
         AND t2.stage = p_stage
     ) AS selected_by_user
-  FROM players p
+  FROM squads p
+  LEFT JOIN countries c ON c.sportsmonk = p.country_id
   LEFT JOIN picks pc ON pc.player_id = p.id
   WHERE (p.tournament_id = p_tournament_id OR p.tournament_id IS NULL)
     AND (
       p_search IS NULL OR (
         p.name ILIKE '%' || p_search || '%' OR
-        p.country_name ILIKE '%' || p_search || '%'
+        c.name ILIKE '%' || p_search || '%'
       )
     )
     AND (p_roles IS NULL OR p.role = ANY(p_roles))
-    AND (p_countries IS NULL OR p.country_name = ANY(p_countries))
+    AND (p_countries IS NULL OR c.name = ANY(p_countries))
   ORDER BY picks_count DESC, lower(p.name)
   LIMIT p_limit OFFSET p_offset;
 END;
@@ -451,14 +452,15 @@ BEGIN
     -- Get tournament and country details
     SELECT 
         t.tournament_id, 
-        p.country_id,
+        c.id
         ts.max_country
     INTO 
         v_tournament_id, 
         v_player_country_id,
         v_max_country_players
     FROM teams t
-    JOIN players p ON p.id = p_player_id
+    JOIN squads p ON p.id = p_player_id
+    JOIN countries c ON c.sportsmonk_id = p.country_id
     JOIN tournament_settings ts ON ts.tournament_id = t.tournament_id
     WHERE t.id = p_team_id;
 
@@ -483,7 +485,7 @@ BEGIN
     -- Count players from the same country
     SELECT COUNT(*) INTO v_country_count
     FROM team_players tp
-    JOIN players p ON p.id = tp.player_id
+    JOIN squads p ON p.id = tp.player_id
     WHERE tp.team_id = p_team_id AND p.country_id = v_player_country_id;
 
     -- Check country player limit
@@ -659,15 +661,15 @@ BEGIN
             (
                 SELECT jsonb_object_agg(c.name, COUNT(p.id))
                 FROM team_players tp_count
-                JOIN players p ON p.id = tp_count.player_id
-                JOIN countries c ON c.id = p.country_id
+                JOIN squads p ON p.id = tp_count.player_id
+                JOIN countries c ON c.sportsmonk = p.country_id
                 WHERE tp_count.team_id = t.id
                 GROUP BY tp_count.team_id
             ) AS country_distribution
         FROM teams t
         LEFT JOIN team_players tp ON t.id = tp.team_id
         LEFT JOIN team_players tp_captain ON t.id = tp_captain.team_id AND tp_captain.is_captain
-        LEFT JOIN players p_captain ON tp_captain.player_id = p_captain.id
+        LEFT JOIN squads p_captain ON tp_captain.player_id = p_captain.id
         WHERE t.id = p_team_id
         GROUP BY 
             t.id, 
@@ -715,16 +717,16 @@ BEGIN
         p.is_injured,
         p.is_suspended,
         c.name AS country_name
-    FROM players p
+    FROM squads p
     JOIN team_players tp ON p.id = tp.player_id
-    JOIN countries c ON p.country_id = c.id
+    LEFT JOIN countries c ON c.sportsmonk = p.country_id
     LEFT JOIN substitution_log sl ON p.id = sl.player_in AND sl.tournament_id = p_tournament_id
     WHERE 
         tp.team_id = p_team_id 
-        AND tp.is_starter = false  -- Only non-starter players
+        AND tp.is_starter = false
         AND p.is_injured = false 
         AND p.is_suspended = false
-        AND sl.id IS NULL  -- Player hasn't been used as a substitute
+        AND sl.id IS NULL
     ORDER BY 
         CASE 
             WHEN p.role = 'allrounder' THEN 1
@@ -791,7 +793,7 @@ BEGIN
         v_player_count, v_batter_count, v_bowler_count, 
         v_allrounder_count, v_wicketkeeper_count, v_captain_count
     FROM team_players tp
-    JOIN players p ON tp.player_id = p.id
+    JOIN squads p ON tp.player_id = p.id
     WHERE tp.team_id = p_team_id 
     AND tp.is_substituted = false;
 
@@ -800,7 +802,7 @@ BEGIN
     FROM (
         SELECT COUNT(*) as country_count
         FROM team_players tp
-        JOIN players p ON tp.player_id = p.id
+        JOIN squads p ON tp.player_id = p.id
         WHERE tp.team_id = p_team_id 
         AND tp.is_substituted = false
         GROUP BY p.country_id
@@ -878,12 +880,12 @@ BEGIN
 
     -- Get the country of the player being added/updated
     SELECT country_id INTO v_player_country_id
-    FROM players WHERE id = NEW.player_id;
+    FROM squads WHERE id = NEW.player_id;
 
     -- Check if adding this player would violate country limit
     SELECT COUNT(*) INTO v_country_count
     FROM team_players tp
-    JOIN players p ON tp.player_id = p.id
+    JOIN squads p ON tp.player_id = p.id
     WHERE tp.team_id = NEW.team_id 
     AND p.country_id = v_player_country_id
     AND tp.is_substituted = false
@@ -961,7 +963,7 @@ BEGIN
             p.role,
             COUNT(*) as player_count
         FROM team_players tp
-        JOIN players p ON tp.player_id = p.id
+        JOIN squads p ON tp.player_id = p.id
         WHERE tp.team_id = p_team_id 
         AND tp.is_substituted = false
         GROUP BY p.role
