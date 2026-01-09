@@ -57,24 +57,19 @@ async function sportsmonkDailyMatchesDataSync() {
           continue;
         }
 
-        for (const match of apiData.data) {
-          try {           
-
-            // Check if live match currently
+        try {           
             const matchStatus = apiData.data.status && apiData.data.status !== 'NS' 
-          ? (apiData.data.winner_team_id ? 'Finished' : 'live')
-          : 'live';
+              ? (apiData.data.winner_team_id ? 'Finished' : 'live')
+              : 'live';
 
             const matchRecord = {
-              id: matches.id,
-              sportsmonk_id: match.id,          
-              status: match.status,
-              match_note: match.note,
+              id: match.id,
+              sportsmonk_id: match.sportsmonk_id,          
+              status: matchStatus,
               currently_live: matchStatus === 'live' ? true : false,
               updated_at: new Date().toISOString()
             };
 
-            // Upsert match data
             const { error: upsertError } = await supabase.from('matches').upsert(matchRecord, {
               onConflict: 'sportsmonk_id'
             });
@@ -84,22 +79,17 @@ async function sportsmonkDailyMatchesDataSync() {
               continue;
             }
 
-            console.log(`Successfully upserted match: ${match.id} - ${matchRecord.team1} vs ${matchRecord.team2}`);
-
+            console.log(`Successfully upserted match: ${match.id}`);
                     
           } catch (matchError) {
             console.error(`Error processing match ${match.id}:`, matchError);
             continue;
           }
+        } catch (error) {
+          console.error(`Error fetching data for match ${match.id}:`, error);
+          continue;
         }
-      } catch (matchesError) {
-        console.error(
-          `Error processing matches:`,
-          matchesError
-        );
-        continue;
       }
-    }
 
     console.log('Sportsmonk daily matches data synchronization completed successfully.');
   } catch (error) {
