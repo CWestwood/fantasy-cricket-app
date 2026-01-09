@@ -486,6 +486,7 @@ BEGIN
     SELECT COUNT(*) INTO v_country_count
     FROM team_players tp
     JOIN squads p ON p.id = tp.player_id
+    JOIN countries c ON c.sportsmonk_id = p.country_id
     WHERE tp.team_id = p_team_id AND p.country_id = v_player_country_id;
 
     -- Check country player limit
@@ -1046,12 +1047,47 @@ AS $$
 DECLARE
     v_leaderboard_count integer;
 BEGIN
-    -- First check if we have any data to work with
+    -- Check if we have any data to work with
     SELECT COUNT(*) INTO v_leaderboard_count
     FROM get_tournament_leaderboard(p_tournament_id);
     
     IF v_leaderboard_count = 0 THEN
-        RAISE NOTICE 'No leaderboard data found for tournament %', p_tournament_id;
+        RAISE NOTICE 'No leaderboard data found for tournament % - initializing empty leaderboard', p_tournament_id;
+        
+        -- Initialize leaderboard with registered teams/users at 0 points
+        INSERT INTO tournament_leaderboard_cache (
+            tournament_id, team_id, team_name, user_id, username,
+            total, batting_total, bowling_total, fielding_total, bonus_total, rank_position
+        )
+        SELECT 
+            p_tournament_id,
+            t.team_id,
+            t.team_name,
+            t.user_id,
+            t.username,
+            0 as total,
+            0 as batting_total,
+            0 as bowling_total,
+            0 as fielding_total,
+            0 as bonus_total,
+            ROW_NUMBER() OVER (ORDER BY t.team_name) as rank_position
+        FROM tournament_teams t  -- or whatever table tracks tournament participants
+        WHERE t.tournament_id = p_tournament_id;
+        
+        -- Create initial history snapshot
+        INSERT INTO tournament_leaderboard_history (
+            tournament_id, match_id, team_id, team_name, user_id, username,
+            total, batting_total, bowling_total, fielding_total, bonus_total, 
+            rank_position, rank_change
+        )
+        SELECT 
+            tournament_id, p_match_id, team_id, team_name, user_id, username,
+            total, batting_total, bowling_total, fielding_total, bonus_total,
+            rank_position, 0 as rank_change
+        FROM tournament_leaderboard_cache
+        WHERE tournament_id = p_tournament_id;
+        
+        RAISE NOTICE 'Initialized empty leaderboard for tournament %', p_tournament_id;
         RETURN;
     END IF;
     
@@ -1124,3 +1160,31 @@ BEGIN
     RAISE NOTICE 'Inserted/updated history for match % in tournament %', p_match_id, p_tournament_id;
 END;
 $$;
+
+CREATE OR REPLACE FUNCTION add_tournament_id_to_process_queue()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Only attempt lookup if tournament_id is NULL and match_id exists
+  IF NEW.tournament_id IS NULL
+     AND NEW.match_id IS NOT NULL THEN
+
+    SELECT m.tournament_id
+    INTO NEW.tournament_id
+    FROM matches m
+    WHERE m.id = NEW.match_id
+    LIMIT 1;
+
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE TRIGGER trg_add_tournament_id_to_process_queue
+BEFORE INSERT OR UPDATE OF match_id, tournament_id
+ON score_update_queue
+FOR EACH ROW
+WHEN (NEW.tournament_id IS NULL)
+EXECUTE FUNCTION add_tournament_id_to_process_queue();
