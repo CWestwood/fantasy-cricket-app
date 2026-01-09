@@ -36,7 +36,7 @@ async function syncLiveMatchData() {
       .select('id, sportsmonk_id, match_name, type_match, tournament_id')
       .neq('status', 'Finished')
       .neq('status', 'NS')
-      .eq('currently_live', 'true');
+      .eq('currently_live', true);
 
     if (matchesError) {
       console.error('Error fetching matches:', matchesError);

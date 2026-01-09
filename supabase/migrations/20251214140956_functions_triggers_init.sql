@@ -328,7 +328,7 @@ AS $$
 DECLARE
     v_match_id uuid;
     v_tournament_id uuid;
-    v_tournaments_processed uuid[];
+    v_tournaments_processed uuid[] := ARRAY[]::uuid[];
 BEGIN
     FOR v_match_id IN 
         SELECT match_id FROM score_update_queue ORDER BY queued_at
@@ -442,7 +442,7 @@ DECLARE
     v_country_count integer;
     v_max_team_players integer := 15;
     v_max_country_players integer;
-    v_player_country_id uuid;
+    v_player_country_id integer;
 BEGIN
     -- Validate inputs
     IF p_team_id IS NULL OR p_player_id IS NULL THEN
@@ -452,7 +452,7 @@ BEGIN
     -- Get tournament and country details
     SELECT 
         t.tournament_id, 
-        c.id
+        p.country_id,
         ts.max_country
     INTO 
         v_tournament_id, 
@@ -460,7 +460,7 @@ BEGIN
         v_max_country_players
     FROM teams t
     JOIN squads p ON p.id = p_player_id
-    JOIN countries c ON c.sportsmonk_id = p.country_id
+    JOIN countries c ON c.sportsmonk = p.country_id
     JOIN tournament_settings ts ON ts.tournament_id = t.tournament_id
     WHERE t.id = p_team_id;
 
@@ -486,7 +486,7 @@ BEGIN
     SELECT COUNT(*) INTO v_country_count
     FROM team_players tp
     JOIN squads p ON p.id = tp.player_id
-    JOIN countries c ON c.sportsmonk_id = p.country_id
+    JOIN countries c ON c.sportsmonk = p.country_id
     WHERE tp.team_id = p_team_id AND p.country_id = v_player_country_id;
 
     -- Check country player limit
