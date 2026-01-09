@@ -144,7 +144,7 @@ async function liveAllocatePoints() {
         fielding: fieldingScore,
         bonus: bonusScore,
         total: totalScore,
-        match_status: "live",
+        match_status: 'live',
         updated_at: new Date().toISOString()
       };
 
