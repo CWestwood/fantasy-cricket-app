@@ -603,3 +603,16 @@ async function getOrCreatePlayer(playerId, tournamentId, supabase, cricketApiKey
 
 
 module.exports = { syncLiveMatchData };
+
+if (require.main === module) {
+  syncLiveMatchData()
+    .then(() => {
+      console.log('✓ Sync completed successfully');
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('✗ Sync failed:', error);
+      console.error(error.stack);
+      process.exit(1);
+    });
+}
