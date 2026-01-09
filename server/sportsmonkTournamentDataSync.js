@@ -79,6 +79,11 @@ async function sportsmonkTournamentDataSync() {
             const localTeam = match.localTeam || match.localteam;
             const visitorTeam = match.visitorTeam || match.visitorteam;
 
+            // Check if live match currently
+            const matchStatus = apiData.data.status && apiData.data.status !== 'NS' 
+          ? (apiData.data.winner_team_id ? 'Finished' : 'live')
+          : 'live';
+
             const matchRecord = {
               sportsmonk_id: match.id,
               // ensure DB tournament id is included
@@ -95,7 +100,7 @@ async function sportsmonkTournamentDataSync() {
               location: match.venue?.name || null,
               status: match.status,
               match_note: match.note,
-              currently_live: false,
+              currently_live: matchStatus === 'live' ? true : false,
               completed_and_captured: existingMatch?.completed_and_captured || false,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
