@@ -36,10 +36,16 @@ async function liveAllocatePoints() {
 
     console.log(`✅ Found ${performances.length} performances to process`);
 
+    // Track unique match IDs for team totals update
+    const processedMatches = new Set();
+
     // Step 2: Process each performance
     for (const performance of performances) {
       console.log(`\n🎯 Processing performance for ${performance.player_name}`);
       
+      // Track this match
+      processedMatches.add(performance.match_id);
+
       // Get points config for this tournament
       const { data: pointsConfig, error: configError } = await supabase
         .from('points_config')
@@ -113,7 +119,7 @@ async function liveAllocatePoints() {
       bowlingScore += islowER ? (pointsConfig.bowling_lower || 0) : 0; 
       bowlingScore += ishighER ? (pointsConfig.bowling_higher || 0) : 0;
       
-      if (is5Wickets) { // Fixed: was is5wickets
+      if (is5Wickets) {
         bowlingScore += pointsConfig.bowling_5wickets || 0;
       } else if (is3Wickets) { 
         bowlingScore += pointsConfig.bowling_3wickets || 0; 
@@ -124,9 +130,7 @@ async function liveAllocatePoints() {
       fieldingScore += (runouts || 0) * (pointsConfig.fielding_runout || 0);
       fieldingScore += (stumpings || 0) * (pointsConfig.fielding_stumping || 0);
 
-      let bonusScore = 0;
-      bonusScore += performance.bonus_potm ? (pointsConfig.bonus_potm || 0) : 0; // Fixed: missing : 0
-      bonusScore += performance.bonus_hattrick ? (pointsConfig.bonus_hattrick || 0) : 0; // Fixed: missing : 0
+      let bonusScore = 0;    
       
       let totalScore = 0;
       totalScore += battingScore;
@@ -152,7 +156,7 @@ async function liveAllocatePoints() {
       const { error: upsertError } = await supabase
         .from('live_scoring')
         .upsert(pointsData, { 
-          onConflict: 'player_id,match_id',
+          onConflict: ['player_id','match_id'],
           ignoreDuplicates: false 
         });
 
@@ -160,15 +164,67 @@ async function liveAllocatePoints() {
         console.error(`❌ Error upserting player ${performance.player_name} (${performance.id}):`, upsertError);
       } else {
         console.log(`✅ Successfully upserted player: ${performance.player_name} - ${performance.match_id}`);
-        
-        }
+      }
     }
 
     console.log('\n🎉 Points allocation completed successfully');
 
+    // Step 3: Update team totals for all processed matches
+    console.log('\n📊 Updating team totals...');
+    for (const matchId of processedMatches) {
+      await updateLiveTeamTotals(supabase, matchId);
+    }
+    console.log('✅ Team totals update completed');
+
   } catch (error) {
     console.error('❌ Fatal error in liveAllocatePoints:', error);
     throw error;
+  }
+}
+
+async function updateLiveTeamTotals(supabase, matchId) {
+  console.log(`🔄 Calculating team totals for match: ${matchId}`);
+  
+  const { data, error } = await supabase.rpc(
+    'calculate_live_team_scores_for_match',
+    { p_match_id: matchId }
+  );
+  
+  if (error) {
+    console.error(`❌ Error calculating team scores for match ${matchId}:`, error);
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    console.log(`ℹ️ No team data returned for match ${matchId}`);
+    return;
+  }
+
+  console.log(`✅ Found ${data.length} teams to update for match ${matchId}`);
+  
+  // Upsert the results into live_userteam_points
+  const { error: upsertError } = await supabase
+    .from('live_userteam_points')
+    .upsert(
+      data.map(row => ({
+        id: uuidv4(),
+        team_id: row.team_id,
+        tournament_id: row.tournament_id,
+        match_id: matchId,
+        batting_total: row.batting_total,
+        bowling_total: row.bowling_total,
+        fielding_total: row.fielding_total,
+        bonus_total: row.bonus_total,
+        final_total: row.final_total,
+        updated_at: new Date().toISOString()
+      })),
+      { onConflict: ['team_id,match_id'], ignoreDuplicates: false}
+    );
+  
+  if (upsertError) {
+    console.error(`❌ Error upserting team totals for match ${matchId}:`, upsertError);
+  } else {
+    console.log(`✅ Successfully updated team totals for match ${matchId}`);
   }
 }
 
