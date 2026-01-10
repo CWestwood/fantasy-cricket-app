@@ -100,7 +100,7 @@ async function sportsmonkTournamentDataSync() {
               location: match.venue?.name || null,
               status: match.status,
               match_note: match.note,
-              currently_live: matchStatus === 'live' ? true : false,
+              currently_live: false,
               completed_and_captured: existingMatch?.completed_and_captured || false,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
