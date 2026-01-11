@@ -15,6 +15,7 @@ import { TeamProvider, useTeam } from "./context/TeamContext";
 import BottomNavbar from "./components/ui/BottomNavbar";
 import Header from "./components/ui/header";
 import { supabase } from "./utils/supabaseClient";
+import TournamentRules from './pages/TournamentRules';
 
 function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
@@ -205,6 +206,23 @@ function AppContent() {
             )
           }
         />
+        <Route
+          path="/tournament-rules"
+          element={
+            session ? (
+              <>
+                <Header />
+                <main className="flex-1">
+                  <TournamentRules />
+                </main>
+                <BottomNavbar onNavigate={() => {}} />
+              </>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
         <Route
           path="/team/:teamId"
           element={

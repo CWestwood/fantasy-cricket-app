@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { TEAM_COLORS } from "../constants/colors";
+import { TEAM_COLORS_gradient, TEAM_COLORS} from "../constants/colors";
 import { useTeam } from "../context/TeamContext";
 import { supabase } from "../utils/supabaseClient";
 import BatIcon from "../assets/icons/bat_white.svg";
@@ -259,11 +259,16 @@ export default function MyTeamPage() {
                 {sortedPlayers.map((player) => (
                   <div
                     key={player.id}
-                    className={`${player.is_substituted ? "bg-gray-600" : (TEAM_COLORS[player.team_name] || "bg-dark-500")} rounded-lg overflow-hidden`}
+                    className={`${
+                      player.is_substituted 
+                        ? "bg-gray-600" 
+                        : `bg-gradient-to-br ${TEAM_COLORS_gradient[player.team_name] || "from-gray-700 to-gray-900"}`
+                    } rounded-lg overflow-hidden`}
                   >
-                    <button
+                    {/* 1. Changed outer 'button' to 'div' */}
+                    <div
                       onClick={() => setExpandedPlayerId(expandedPlayerId === player.id ? null : player.id)}
-                      className={`w-full p-3 flex items-center justify-between gap-2 ${player.is_substituted ? "hover:bg-gray-500" : "hover:bg-dark-400"} transition-colors`}
+                      className={`w-full p-3 flex items-center justify-between gap-2 cursor-pointer ${player.is_substituted ? "hover:bg-gray-500" : "hover:bg-dark-400"} transition-colors`}
                     >
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <div className="flex-shrink-0">
@@ -271,58 +276,51 @@ export default function MyTeamPage() {
                             <img
                               src={getRoleIcon((player.role || "").toLowerCase())}
                               alt={player.role}
-                              title={player.role}
                               className={`w-8 h-8 object-contain ${player.is_substituted ? "opacity-50" : ""}`}
                             />
                           )}
                         </div>
+                        
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between text-center gap-1">
+                            {/* 2. Inner Button remains, but we stop propagation */}
                             <button
                               type="button"
-                              onClick={(e) => goToPlayerProfile(e, player.id)}
-                              className={`w-full text-sm font-semibold truncate text-center focus:outline-none ${
-                                player.is_substituted 
-                                  ? "text-gray-400" 
-                                  : captain?.id === player.id 
-                                    ? "text-yellow-400" 
-                                    : "text-white"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevents the 'Expand' action
+                                goToPlayerProfile(e, player.id);
+                              }}
+                              className={`w-full text-sm font-semibold text-center truncate focus:outline-none hover:underline ${
+                                player.is_substituted ? "text-gray-100" : captain?.id === player.id ? "text-yellow-400" : "text-white"
                               }`}
                             >
                               {player.name}
                             </button>
-                            {player.is_substituted_in && (
-                              <svg className="w-4 h-4 text-green-500 flex-shrink-0 rotate-90" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 111.414 1.414L5.414 9l5.293 5.293a1 1 0 01-1.414 1.414l-6-6z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                            {player.is_substituted && (
-                              <svg className="w-4 h-4 text-red-500 flex-shrink-0 rotate-90" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 11-1.414-1.414L14.586 11l-5.293-5.293a1 1 0 011.414-1.414l6 6z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                          </div>
-                          <p className={`text-xs ${player.is_substituted ? "text-gray-500" : "text-gray-400"} truncate`}>
+                            </div>
+                          <p className={`text-xs ${player.is_substituted ? "text-gray-500" : "text-gray-300"} truncate`}>
                             {player.team_name || "Unknown"}
                           </p>
                         </div>
                       </div>
+
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <p className={`text-sm font-bold ${player.is_substituted ? "text-gray-400" : "text-primary-500"}`}>
+                        <p className={`w-full text-left text-sm font-bold ${player.is_substituted ? "text-gray-600" : "text-primary-500"}`}>
                           {playerScores[player.id]?.total || 0}
                         </p>
-                        <svg
-                          className={`w-4 h-4 ${player.is_substituted ? "text-gray-500" : "text-gray-400"} transition-transform ${
-                            expandedPlayerId === player.id ? "rotate-180" : ""
-                          }`}
+                        {/* Arrow Icon - Fixed */}
+                        <svg 
+                          className={`w-6 h-6 transition-transform ${expandedPlayerId === player.id ? "rotate-180" : ""} ${player.is_substituted ? "text-gray-400" : "text-gray-300"}`}
+                          xmlns="http://www.w3.org/2000/svg"
                           fill="none"
-                          stroke="currentColor"
                           viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
                         >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                         </svg>
                       </div>
-                    </button>
+                    </div>
+
 
                     {/* Expanded Score Breakdown */}
                     {expandedPlayerId === player.id && (
@@ -361,10 +359,10 @@ export default function MyTeamPage() {
               </div>
 
               {/* Desktop Table View */}
-              <table className="w-full hidden sm:table">
+              <table className="w-full border-separate border-spacing-y-2 hidden sm:table">
                 <thead>
                   <tr className="border-b border-gray-600">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-300">
+                    <th className="text-center py-3 px-4 font-semibold text-gray-300">
                       Player
                     </th>
                     <th className="text-center py-3 px-4 font-semibold text-gray-300">
@@ -375,16 +373,19 @@ export default function MyTeamPage() {
                     </th>
                   </tr>
                 </thead>
+               
                 <tbody>
                   {sortedPlayers.map((player) => (
                     <React.Fragment key={player.id}>
                       <tr
                         onClick={() => setExpandedPlayerId(expandedPlayerId === player.id ? null : player.id)}
-                        className={`border-b ${player.is_substituted ? "bg-gray-700 hover:bg-gray-600" : (TEAM_COLORS[player.team_name] ? `${TEAM_COLORS[player.team_name]} hover:opacity-90` : "border-gray-700 hover:bg-dark-500")} transition-colors cursor-pointer`}
+                        className={`border-gray-700  ${player.is_substituted 
+                        ? "bg-gray-600" 
+                        : `bg-gradient-to-br ${TEAM_COLORS_gradient[player.team_name] || "from-gray-700 to-gray-900"}`} transition-colors cursor-pointer`}
                       >
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center flex-shrink-0">
+                        <td className="py-3 px-4 rounded-l-xl">
+                          <div className="flex items-center relative">
+                            <div className="absolute left-0 flex-shrink-0">
                               {getRoleIcon((player.role || "").toLowerCase()) && (
                                 <img
                                   src={getRoleIcon((player.role || "").toLowerCase())}
@@ -394,11 +395,11 @@ export default function MyTeamPage() {
                                 />
                               )}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex-1 flex items-center justify-center gap-2">
                               <button
                                 type="button"
                                 onClick={(e) => goToPlayerProfile(e, player.id)}
-                                className={`font-semibold focus:outline-none ${
+                                className={`font-semibold items-center focus:outline-none ${
                                   player.is_substituted
                                     ? "text-gray-400"
                                     : captain?.id === player.id
@@ -426,14 +427,14 @@ export default function MyTeamPage() {
                             {player.team_name || "Unknown"}
                           </span>
                         </td>
-                        <td className={`py-3 px-4 text-center text-lg font-bold ${player.is_substituted ? "text-gray-400" : "text-primary-500"}`}>
+                        <td className={`py-3 px-4 text-center text-lg font-bold rounded-r-xl ${player.is_substituted ? "text-gray-400" : "text-primary-500"}`}>
                           {playerScores[player.id]?.total || 0}
                         </td>
                       </tr>
                       {expandedPlayerId === player.id && (
-                        <tr className={`border-b ${player.is_substituted ? "bg-gray-600" : (TEAM_COLORS[player.team_name] || "bg-dark-600")} ${player.is_substituted ? "border-gray-600" : "border-gray-700"}`}>
-                          <td colSpan="3" className="py-4 px-4">
-                            <div className="grid grid-cols-4 gap-4 max-w-md">
+                        <tr className={`w-full max-w-md border-b ${player.is_substituted ? "bg-gray-600" : (TEAM_COLORS[player.team_name] || "bg-dark-600")} ${player.is_substituted ? "border-gray-600" : "border-gray-700"}`}>
+                          <td colSpan="3" className="py-4 px-4 flex justify-center w-full">
+                            <div className="grid grid-cols-4 gap-4 w-full max-w-md">
                               <div className={`${player.is_substituted ? "bg-gray-700" : "bg-dark-500"} rounded-lg p-3 text-center`}>
                                 <p className={`text-sm mb-2 ${player.is_substituted ? "text-gray-500" : "text-gray-400"}`}>Batting</p>
                                 <p className={`text-2xl font-bold ${player.is_substituted ? "text-gray-400" : "text-primary-500"}`}>

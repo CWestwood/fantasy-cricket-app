@@ -111,7 +111,7 @@ BEGIN
     WITH active_team AS (
     SELECT
         tp.id,
-        c.id AS country_id,   -- UUID, not integer
+        c.id AS country_id,   
         tp.is_captain
     FROM team_players tp
     JOIN squads s ON s.id = tp.player_id
@@ -127,7 +127,7 @@ SELECT
 INTO
     v_active_count,
     v_country_count,
-    v_captain_coun
+    v_captain_count
     FROM active_team;
 
     /*

@@ -103,7 +103,7 @@ const PlayerStats = () => {
 
       try {
         const playersRes = await supabase
-          .from("players")
+          .from("squads")
           .select("id, name, role, team_name")
           .eq("tournament_id", tournamentId)
           .order("name", { ascending: true });

@@ -109,6 +109,14 @@ const BottomNavbar = ({ onNavigate }) => {
             > 
             Leaderboard
             </button>
+
+             <button 
+              onClick={() => navigate("/tournament-rules")} 
+              className="text-left w-full px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-dark-400"
+            > 
+            Tournament Rules
+            </button>
+            
             <button
               onClick={handleLogout}
               className="text-left w-full px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-dark-400"

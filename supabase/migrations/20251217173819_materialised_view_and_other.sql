@@ -55,13 +55,13 @@ SELECT
     t.tournament_id,
     tr.name as tournament_name
 FROM team_players tp
-JOIN players p ON tp.player_id = p.id
+JOIN squads p ON tp.player_id = p.id
 JOIN teams t ON tp.team_id = t.id
 JOIN tournaments tr ON t.tournament_id = tr.id
 INNER JOIN match_data md ON p.id = md.player_id
 INNER JOIN matches m ON md.match_id = m.id 
     AND t.tournament_id = m.tournament_id
-    AND m.match_date >= tp.added_at
+    AND m.match_time >= tp.added_at
     AND (tp.removed_at IS NULL OR m.match_date < tp.removed_at)
 LEFT JOIN scores s ON p.id = s.player_id AND m.id = s.match_id;
 

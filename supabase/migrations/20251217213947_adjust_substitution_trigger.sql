@@ -34,13 +34,13 @@ BEGIN
 
     -- Get the country of the player being added/updated
     SELECT country_id INTO v_player_country_id
-    FROM players WHERE id = NEW.player_id;
+    FROM squads WHERE id = NEW.player_id;
 
     -- Check if adding this player would violate country limit
     -- Only count players that are currently active (is_substituted = false)
     SELECT COUNT(*) INTO v_country_count
     FROM team_players tp
-    JOIN players p ON tp.player_id = p.id
+    JOIN squads p ON tp.player_id = p.id
     WHERE tp.team_id = NEW.team_id 
     AND p.country_id = v_player_country_id
     AND tp.is_substituted = false

@@ -62,6 +62,7 @@ export default function TeamDetail() {
   async function fetchTeamDetail() {
     setError("");
     setLoading(true);
+    
     try {
       // Fetch team info - filter by both id and tournament_id to get the right team
       const teamRes = await supabase
@@ -70,8 +71,6 @@ export default function TeamDetail() {
         .eq("id", teamId)
         .eq("tournament_id", tournamentId)
         .single();
-
-      console.debug("TeamDetail: team ->", teamRes);
 
       if (teamRes.error) {
         setError(`Team not found: ${teamRes.error.message}`);
@@ -85,7 +84,7 @@ export default function TeamDetail() {
 
       // Fetch username from users table
       const { data: userData } = await supabase
-        .from("public_user_profiles")
+        .from("users")
         .select("username")
         .eq("id", teamRes.data.user_id)
         .single();
@@ -115,7 +114,7 @@ export default function TeamDetail() {
           is_captain,
           is_starter,
           is_substituted,
-          players (
+          squads (
             id,
             name,
             role,
@@ -125,6 +124,7 @@ export default function TeamDetail() {
         .eq("team_id", teamId);
 
       console.debug("TeamDetail: team_players ->", teamPlayersRes);
+
 
       if (teamPlayersRes.error) {
         console.debug("team_players error:", teamPlayersRes.error);
@@ -182,10 +182,10 @@ export default function TeamDetail() {
         is_starter: tp.is_starter,
         is_substituted: tp.is_substituted,
         players: {
-          id: tp.players.id,
-          name: tp.players.name,
-          role: tp.players.role,
-          team_name: tp.players.team_name,
+          id: tp.squads.id,
+          name: tp.squads.name,
+          role: tp.squads.role,
+          team_name: tp.squads.team_name,
         },
         scores: performanceMap[tp.player_id] || [],
       }));

@@ -11,6 +11,11 @@ BEGIN
     WHEN 'batter' THEN RETURN 'Batter';
     WHEN 'allrounder' THEN RETURN 'Allrounder';
     WHEN 'wicketkeeper' THEN RETURN 'Wicketkeeper';
+    WHEN 'top order batter' THEN RETURN 'Batter';
+    WHEN 'middle order batter' THEN RETURN 'Batter';
+    WHEN 'lower order batter' THEN RETURN 'Batter';
+    WHEN 'fast bowler' THEN RETURN 'Bowler';
+    WHEN 'spin bowler' THEN RETURN 'Bowler';
     ELSE RETURN role; 
   END CASE;
 END;
@@ -33,7 +38,7 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS trg_normalize_player_role ON players;
 
 CREATE TRIGGER trg_normalize_player_role 
-BEFORE INSERT OR UPDATE ON players
+BEFORE INSERT OR UPDATE ON squads
 FOR EACH ROW
 EXECUTE FUNCTION normalize_player_role();
 

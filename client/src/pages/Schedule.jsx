@@ -107,11 +107,11 @@ export default function Schedule() {
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
-      case "scheduled":
+      case "ns":
         return "bg-blue-900/30 text-blue-300 border-blue-600";
       case "live":
         return "bg-green-900/30 text-green-300 border-green-600";
-      case "completed":
+      case "finished":
         return "bg-gray-900/30 text-gray-300 border-gray-600";
       case "cancelled":
         return "bg-red-900/30 text-red-300 border-red-600";
@@ -246,7 +246,7 @@ export default function Schedule() {
                         <div
                           className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(match.status)}`}
                         >
-                          {match.status || "Scheduled"}
+                          {match.match_note || "Scheduled"}
                         </div>
                       </div>
                   </div>
@@ -287,7 +287,7 @@ export default function Schedule() {
                           <div
                             className={`inline-block px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(match.status)}`}
                           >
-                            {match.status || "Scheduled"}
+                            {match.match_note || "Scheduled"}
                           </div>
                         </td>
                       </tr>

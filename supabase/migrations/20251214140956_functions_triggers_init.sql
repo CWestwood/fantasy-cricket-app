@@ -206,7 +206,7 @@ BEGIN
         AND t2.stage = p_stage
     ) AS selected_by_user
   FROM squads p
-  LEFT JOIN countries c ON c.sportsmonk = p.country_id
+  LEFT JOIN countries c ON c.sportsmonk_id = p.country_id
   LEFT JOIN picks pc ON pc.player_id = p.id
   WHERE (p.tournament_id = p_tournament_id OR p.tournament_id IS NULL)
     AND (
@@ -460,7 +460,7 @@ BEGIN
         v_max_country_players
     FROM teams t
     JOIN squads p ON p.id = p_player_id
-    JOIN countries c ON c.sportsmonk = p.country_id
+    JOIN countries c ON c.sportsmonk_id = p.country_id
     JOIN tournament_settings ts ON ts.tournament_id = t.tournament_id
     WHERE t.id = p_team_id;
 
@@ -486,7 +486,7 @@ BEGIN
     SELECT COUNT(*) INTO v_country_count
     FROM team_players tp
     JOIN squads p ON p.id = tp.player_id
-    JOIN countries c ON c.sportsmonk = p.country_id
+    JOIN countries c ON c.sportsmonk_id = p.country_id
     WHERE tp.team_id = p_team_id AND p.country_id = v_player_country_id;
 
     -- Check country player limit
@@ -663,7 +663,7 @@ BEGIN
                 SELECT jsonb_object_agg(c.name, COUNT(p.id))
                 FROM team_players tp_count
                 JOIN squads p ON p.id = tp_count.player_id
-                JOIN countries c ON c.sportsmonk = p.country_id
+                JOIN countries c ON c.sportsmonk_id = p.country_id
                 WHERE tp_count.team_id = t.id
                 GROUP BY tp_count.team_id
             ) AS country_distribution
@@ -720,7 +720,7 @@ BEGIN
         c.name AS country_name
     FROM squads p
     JOIN team_players tp ON p.id = tp.player_id
-    LEFT JOIN countries c ON c.sportsmonk = p.country_id
+    LEFT JOIN countries c ON c.sportsmonk_id = p.country_id
     LEFT JOIN substitution_log sl ON p.id = sl.player_in AND sl.tournament_id = p_tournament_id
     WHERE 
         tp.team_id = p_team_id 

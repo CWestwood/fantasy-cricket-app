@@ -223,7 +223,7 @@ export default function TeamSelection() {
       try {
         console.log("Attempting fallback direct query to players table...");
         const { data: fallbackData, error: fallbackError } = await supabase
-          .from("players")
+          .from("squads")
           .select("id, name, team_name, role, country_name")
           .eq("tournament_id", tournamentId);
         
@@ -374,14 +374,20 @@ useEffect(() => {
         return;
       }
 
-      const { error: rpcError } = await supabase.rpc("save_draft_team", {
+      const draft_team = {
         p_tournament_id: tournamentId,
         p_stage: "group",
         p_team_name: teamName.trim(),
         p_username: cleanUsername,
         p_player_ids: selectedPlayers.map((player) => player.id),
         p_captain_id: captain.id,
-      });
+      };
+
+      // 2. Add the debug output
+      console.debug("Sending to save_draft_team:", draft_team);
+
+      // 3. Pass the payload variable to the RPC call
+      const { error: rpcError } = await supabase.rpc("save_draft_team", draft_team);
 
       if (rpcError) {
         throw rpcError;

@@ -67,6 +67,7 @@ async function sportsmonkDailyMatchesDataSync() {
               sportsmonk_id: match.sportsmonk_id,          
               status: matchStatus,
               currently_live: matchStatus === 'live' ? true : false,
+              match_note: apiData.data.note,
               updated_at: new Date().toISOString()
             };
 

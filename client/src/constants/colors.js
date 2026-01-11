@@ -17,3 +17,23 @@ export const TEAM_COLORS = {
   "Adelaide Strikers": "bg-blue-600/70",
   "Melbourne Renegades": "bg-red-600/70",
 };
+
+export const TEAM_COLORS_gradient = {
+  "India": "from-sky-400 to-sky-800",
+  "Pakistan": "from-green-500 to-green-900",
+  "Australia": "from-yellow-400 to-yellow-800",
+  "England": "from-rose-400 to-rose-600",
+  "South Africa": "from-lime-600 to-lime-800",
+  "New Zealand": "from-slate-500 to-slate-700",
+  "West Indies": "from-purple-200 to-purple-400",
+  "Sri Lanka": "from-cyan-200 to-cyan-400",
+  "Bangladesh": "from-green-200 to-green-400",
+  "Afghanistan": "from-blue-500 to-blue-700",
+  "Hobart Hurricanes": "from-yellow-400 to-yellow-900",
+  "Sydney Sixers": "from-pink-400 to-pink-900",
+  "Melbourne Stars": "from-green-400 to-green-900",
+  "Brisbane Heat": "from-teal-400 to-teal-900",
+  "Perth Scorchers": "from-orange-400 to-orange-900",
+  "Adelaide Strikers": "from-blue-400 to-blue-900",
+  "Melbourne Renegades": "from-red-400 to-red-900",
+};

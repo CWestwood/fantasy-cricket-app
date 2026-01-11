@@ -53,7 +53,7 @@ export default function PlayerProfile() {
       setError("");
       try {
         const { data: playerData, error: playerError } = await supabase
-          .from("players")
+          .from("squads")
           .select("id, name, role, team_name")
           .eq("id", playerId)
           .single();

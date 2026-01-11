@@ -130,3 +130,61 @@ BEGIN
     AND t.is_locked = false;
 END;
 $$;
+
+CREATE OR REPLACE FUNCTION add_player_name_to_performances()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Only attempt lookup if player_name is NULL and player_id exists
+  IF NEW.player_name IS NULL
+     AND NEW.player_id IS NOT NULL THEN
+
+    SELECT s.name
+    INTO NEW.player_name
+    FROM squads s
+    WHERE s.id = NEW.player_id
+    LIMIT 1;
+
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE TRIGGER trg_add_player_name_to_performances
+BEFORE INSERT OR UPDATE OF player_id, player_name
+ON match_data
+FOR EACH ROW
+WHEN (NEW.player_name IS NULL)
+EXECUTE FUNCTION add_player_name_to_performances();
+
+
+
+CREATE OR REPLACE FUNCTION live_add_player_name_to_performances()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Only attempt lookup if player_name is NULL and player_id exists
+  IF NEW.player_name IS NULL
+     AND NEW.player_id IS NOT NULL THEN
+
+    SELECT s.name
+    INTO NEW.player_name
+    FROM squads s
+    WHERE s.id = NEW.player_id
+    LIMIT 1;
+
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE TRIGGER trg_live_add_player_name_to_performances
+BEFORE INSERT OR UPDATE OF player_id, player_name
+ON live_scoring
+FOR EACH ROW
+WHEN (NEW.player_name IS NULL)
+EXECUTE FUNCTION live_add_player_name_to_performances();
