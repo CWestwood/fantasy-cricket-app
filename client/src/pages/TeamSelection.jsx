@@ -1,6 +1,6 @@
   // Remove unused import (useMemo, useState for isFiltering)
 import React, { useEffect, useState, useRef } from "react";
-import { TEAM_COLORS } from "../constants/colors";
+import { TEAM_COLORS, TEAM_COLORS_gradient } from "../constants/colors";
 import { useTeam } from "../context/TeamContext";
 import { supabase } from "../utils/supabaseClient";
 import { containsProfanity, sanitizeName } from "../utils/profanity";
@@ -383,10 +383,6 @@ useEffect(() => {
         p_captain_id: captain.id,
       };
 
-      // 2. Add the debug output
-      console.debug("Sending to save_draft_team:", draft_team);
-
-      // 3. Pass the payload variable to the RPC call
       const { error: rpcError } = await supabase.rpc("save_draft_team", draft_team);
 
       if (rpcError) {
@@ -538,7 +534,7 @@ useEffect(() => {
                     <div
                       key={player.id}
                       className={`${
-                        TEAM_COLORS[player.team_name] || "bg-gray-700"
+                        `bg-gradient-to-br ${TEAM_COLORS_gradient[player.team_name] || "from-gray-700 to-gray-900"}`
                       } bg-opacity-80 rounded-lg p-3 relative min-h-[40px] flex items-center`}
                     >
                       {/* Show captain button if no captain is selected, or if the current player IS the captain */}

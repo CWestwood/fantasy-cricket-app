@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../utils/supabaseClient";
 import { useTeam } from "../context/TeamContext";
-import { TEAM_COLORS } from "../constants/colors";
+import { TEAM_COLORS, TEAM_COLORS_gradient } from "../constants/colors";
 
 export default function Schedule() {
   const { tournamentId } = useTeam();
@@ -121,7 +121,7 @@ export default function Schedule() {
   };
 
   const getTeamColor = (teamName) => {
-    return TEAM_COLORS[teamName] || "bg-gray-600/70";
+    return `bg-gradient-to-br ${TEAM_COLORS_gradient[teamName] || "from-gray-600/70 to-gray-700/70"}`;
   };
 
   if (loading) {

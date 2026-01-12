@@ -63,7 +63,7 @@ export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, ca
       try {
         // Get all players for the tournament
         const { data: allPlayers, error: playersError } = await supabase
-          .from("players")
+          .from("squads")
           .select("*")
           .eq("tournament_id", tournamentId);
 
