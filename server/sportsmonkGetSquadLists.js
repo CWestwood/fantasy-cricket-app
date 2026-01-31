@@ -195,7 +195,7 @@ async function sportsmonkGetSquadLists() {
               // ensure composite conflict target matches DB constraint exactly (no stray spaces)
               const { error: upsertError } = await supabase
                 .from('squads')
-                .upsert(squadData, { onConflict: 'tournament_league_id,tournament_stage_id,tournament_season_id,sportsmonk_id,team_name' });
+                .upsert(squadData, { onConflict: 'id' });
 
               if (upsertError) {
                 console.error(`Error upserting squad player ${playerName} (${player.id}):`, upsertError);
