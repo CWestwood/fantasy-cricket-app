@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../utils/supabaseClient";
 import { useTeam } from "../context/TeamContext";
@@ -12,11 +12,34 @@ export default function Leaderboard() {
   const [expandedTeam, setExpandedTeam] = useState(null);
   const [isLive, setIsLive] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [liveScores, setLiveScores] = useState({});
 
   useEffect(() => {
     console.debug("Leaderboard: useEffect tournamentId ->", tournamentId);
     if (!tournamentId) return;
     fetchLeaderboard();
+    fetchLiveScores();
+
+    // Subscribe to live score updates
+    const channel = supabase
+      .channel("live_leaderboard_updates")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "live_userteam_points",
+          filter: `tournament_id=eq.${tournamentId}`,
+        },
+        () => {
+          fetchLiveScores();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournamentId]);
 
@@ -45,12 +68,106 @@ export default function Leaderboard() {
     }
   }
 
+  async function fetchLiveScores() {
+    try {
+      const { data, error } = await supabase
+        .from("live_userteam_points")
+        .select("team_id, total, batting, bowling, fielding, bonus")
+        .eq("tournament_id", tournamentId);
+
+      if (error) {
+        console.error("Error fetching live scores:", error);
+        return;
+      }
+
+      const aggregated = {};
+      if (data) {
+        data.forEach((row) => {
+          if (!aggregated[row.team_id]) {
+            aggregated[row.team_id] = {
+              total: 0,
+              batting: 0,
+              bowling: 0,
+              fielding: 0,
+              bonus: 0,
+            };
+          }
+          aggregated[row.team_id].total += Number(row.total) || 0;
+          aggregated[row.team_id].batting += Number(row.batting) || 0;
+          aggregated[row.team_id].bowling += Number(row.bowling) || 0;
+          aggregated[row.team_id].fielding += Number(row.fielding) || 0;
+          aggregated[row.team_id].bonus += Number(row.bonus) || 0;
+        });
+      }
+      setLiveScores(aggregated);
+    } catch (e) {
+      console.error("Exception fetching live scores:", e);
+    }
+  }
+
   const formatNumber = (v) => {
     if (v === null || v === undefined) return "0";
     const n = Number(v);
     if (Number.isNaN(n)) return String(v);
     return n % 1 === 0 ? String(n) : n.toFixed(1);
   };
+
+  const processedRows = useMemo(() => {
+    if (!rows.length) return [];
+
+    let data = rows.map((row) => {
+      const live = liveScores[row.team_id] || {
+        total: 0,
+        batting: 0,
+        bowling: 0,
+        fielding: 0,
+        bonus: 0,
+      };
+
+      if (!isLive) {
+        return {
+          ...row,
+          display_total: Number(row.total),
+          display_batting: Number(row.batting_total),
+          display_bowling: Number(row.bowling_total),
+          display_fielding: Number(row.fielding_total),
+          display_bonus: Number(row.bonus_total),
+          live_delta_total: 0,
+          live_delta_batting: 0,
+          live_delta_bowling: 0,
+          live_delta_fielding: 0,
+          live_delta_bonus: 0,
+          display_rank: row.rank_position,
+        };
+      }
+
+      return {
+        ...row,
+        display_total: Number(row.total) + live.total,
+        display_batting: Number(row.batting_total) + live.batting,
+        display_bowling: Number(row.bowling_total) + live.bowling,
+        display_fielding: Number(row.fielding_total) + live.fielding,
+        display_bonus: Number(row.bonus_total) + live.bonus,
+        live_delta_total: live.total,
+        live_delta_batting: live.batting,
+        live_delta_bowling: live.bowling,
+        live_delta_fielding: live.fielding,
+        live_delta_bonus: live.bonus,
+      };
+    });
+
+    if (isLive) {
+      data.sort((a, b) => b.display_total - a.display_total);
+      data = data.map((row, index) => ({
+        ...row,
+        display_rank: index + 1,
+      }));
+    } else {
+      data.sort((a, b) => a.rank_position - b.rank_position);
+    }
+
+    return data;
+  }, [rows, liveScores, isLive]);
 
   return (
     <div className="min-h-screen bg-dark-500 text-white py-6">
@@ -92,26 +209,29 @@ export default function Leaderboard() {
         <div className="bg-card-light rounded-2xl shadow-card p-4 sm:p-6">
           {error && <div className="text-sm text-red-400 mb-3">{error}</div>}
 
-          {rows.length === 0 && !loading ? (
+          {processedRows.length === 0 && !loading ? (
             <div className="text-gray-400">No leaderboard data available.</div>
           ) : (
             <div className="space-y-2">
               {/* Mobile card list */}
               <div className="sm:hidden space-y-1">
-                {rows.map((r) => (
+                {processedRows.map((r) => (
                   <div key={r.team_id} className="bg-dark-500 rounded-lg p-3 cursor-pointer hover:bg-dark-400 transition-colors">
                     <div onClick={() => navigate(`/team/${r.team_id}`)}>
                       <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-5">
-                          <div className="text-primary-500 font-bold text-lg">#{r.rank_position}</div>
-                          <div>
-                            <div className="font-semibold">{r.team_name}</div>
-                            <div className="text-xs text-gray-400">{r.username}</div>
-                          </div>
+                        <div className="text-primary-500 font-bold text-lg">#{r.display_rank}</div>
+                        <div className="flex-1 text-center">
+                          <div className="font-semibold">{r.team_name}</div>
+                          <div className="text-xs text-gray-400">{r.username}</div>
                         </div>
                         <div className="flex items-center gap-5">
                           <div className="text-right">
-                            <div className="font-bold text-primary-500">{formatNumber(r.total)}</div>
+                            <div className="font-bold text-primary-500">
+                              {formatNumber(r.display_total)}
+                              {isLive && r.live_delta_total >= 0 && (
+                                <span className="ml-1 text-xs text-green-400">+{formatNumber(r.live_delta_total)}</span>
+                              )}
+                            </div>
                           </div>
                           <button
                             onClick={(e) => {
@@ -136,28 +256,40 @@ export default function Leaderboard() {
                     </div>
 
                     {expandedTeam === r.team_id && (() => {
-                      const breakdownSum = (Number(r.batting_total) || 0) + (Number(r.bowling_total) || 0) + (Number(r.fielding_total) || 0) + (Number(r.bonus_total) || 0);
+                      const breakdownSum = r.display_batting + r.display_bowling + r.display_fielding + r.display_bonus;
                       return (
                         <div className="mt-3 grid grid-cols-2 gap-2">
                           <div className="bg-dark-600 p-2 rounded">
                             <div className="text-xs text-gray-400">Batting</div>
-                            <div className="font-bold text-primary-500">{formatNumber(r.batting_total)}</div>
+                            <div className="font-bold text-primary-500">
+                              {formatNumber(r.display_batting)}
+                              {isLive && r.live_delta_batting > 0 && <span className="ml-1 text-xs text-green-400">+{formatNumber(r.live_delta_batting)}</span>}
+                            </div>
                           </div>
                           <div className="bg-dark-600 p-2 rounded">
                             <div className="text-xs text-gray-400">Bowling</div>
-                            <div className="font-bold text-primary-500">{formatNumber(r.bowling_total)}</div>
+                            <div className="font-bold text-primary-500">
+                              {formatNumber(r.display_bowling)}
+                              {isLive && r.live_delta_bowling > 0 && <span className="ml-1 text-xs text-green-400">+{formatNumber(r.live_delta_bowling)}</span>}
+                            </div>
                           </div>
                           <div className="bg-dark-600 p-2 rounded">
                             <div className="text-xs text-gray-400">Fielding</div>
-                            <div className="font-bold text-primary-500">{formatNumber(r.fielding_total)}</div>
+                            <div className="font-bold text-primary-500">
+                              {formatNumber(r.display_fielding)}
+                              {isLive && r.live_delta_fielding > 0 && <span className="ml-1 text-xs text-green-400">+{formatNumber(r.live_delta_fielding)}</span>}
+                            </div>
                           </div>
                           <div className="bg-dark-600 p-2 rounded">
                             <div className="text-xs text-gray-400">Bonus</div>
-                            <div className="font-bold text-primary-500">{formatNumber(r.bonus_total)}</div>
+                            <div className="font-bold text-primary-500">
+                              {formatNumber(r.display_bonus)}
+                              {isLive && r.live_delta_bonus > 0 && <span className="ml-1 text-xs text-green-400">+{formatNumber(r.live_delta_bonus)}</span>}
+                            </div>
                           </div>
-                          {breakdownSum !== Number(r.total) && (
+                          {Math.abs(breakdownSum - r.display_total) > 0.01 && (
                             <div className="col-span-2 bg-yellow-900/30 border border-yellow-600 rounded p-2">
-                              <div className="text-xs text-yellow-300">⚠ Breakdown sum {formatNumber(breakdownSum)} ≠ Total {formatNumber(r.total)}</div>
+                              <div className="text-xs text-yellow-300">⚠ Breakdown sum {formatNumber(breakdownSum)} ≠ Total {formatNumber(r.display_total)}</div>
                             </div>
                           )}
                         </div>
@@ -180,17 +312,20 @@ export default function Leaderboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((r) => (
+                    {processedRows.map((r) => (
                       <React.Fragment key={r.team_id}>
                         <tr className="border-b border-gray-700 hover:bg-dark-500 transition-colors cursor-pointer" onClick={() => navigate(`/team/${r.team_id}`)}>
-                          <td className="py-3 px-4 align-top">{r.rank_position}</td>
+                          <td className="py-3 px-4 align-top">{r.display_rank}</td>
                           <td className="py-3 px-4">
                             <div className="font-semibold">{r.team_name}</div>
                           </td>
                           <td className="py-3 px-4 text-gray-300">{r.username}</td>
-                          <td className="py-3 px-4 text-right font-bold text-primary-500">{formatNumber(r.total)}</td>
+                          <td className="py-3 px-4 text-right font-bold text-primary-500">
+                            {formatNumber(r.display_total)}
+                            {isLive && r.live_delta_total >= 0 && <span className="ml-1 text-xs text-green-400">+{formatNumber(r.live_delta_total)}</span>}
+                          </td>
                           <td className="py-3 px-4 text-sm text-gray-300">
-                            {formatNumber(r.batting_total)} / {formatNumber(r.bowling_total)} / {formatNumber(r.fielding_total)} / {formatNumber(r.bonus_total)}
+                            {formatNumber(r.display_batting)}{isLive && r.live_delta_batting > 0 && <span className="text-green-400 text-xs">+{formatNumber(r.live_delta_batting)}</span>} / {formatNumber(r.display_bowling)}{isLive && r.live_delta_bowling > 0 && <span className="text-green-400 text-xs">+{formatNumber(r.live_delta_bowling)}</span>} / {formatNumber(r.display_fielding)}{isLive && r.live_delta_fielding > 0 && <span className="text-green-400 text-xs">+{formatNumber(r.live_delta_fielding)}</span>} / {formatNumber(r.display_bonus)}{isLive && r.live_delta_bonus > 0 && <span className="text-green-400 text-xs">+{formatNumber(r.live_delta_bonus)}</span>}
                           </td>
                         </tr>
 

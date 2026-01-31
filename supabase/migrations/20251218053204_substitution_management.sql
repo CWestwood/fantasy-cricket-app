@@ -175,3 +175,57 @@ ON countries (sportsmonk_id);
 
 CREATE INDEX IF NOT EXISTS idx_squads_country_id
 ON squads (country_id);
+
+CREATE OR REPLACE FUNCTION enforce_substitution_limit()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_subs_used numeric;
+    v_max_subs numeric;
+    v_stage text;
+BEGIN
+    SELECT subs_used, stage
+    INTO v_subs_used, v_stage
+    FROM teams
+    WHERE id = NEW.team_id;
+
+    SELECT max_subs
+    INTO v_max_subs
+    FROM tournament_settings
+    WHERE tournament_id = NEW.tournament_id
+      AND stage = v_stage;
+
+    v_max_subs := COALESCE(v_max_subs, 3);
+
+    IF v_subs_used >= v_max_subs THEN
+        RAISE EXCEPTION 'Substitution limit reached (% used, % max)', v_subs_used, v_max_subs;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_enforce_substitution_limit
+BEFORE INSERT ON substitutions
+FOR EACH ROW
+EXECUTE FUNCTION enforce_substitution_limit();
+
+CREATE OR REPLACE FUNCTION update_substitution_usage_count()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NEW.status = 'completed' AND OLD.status != 'completed' THEN
+        UPDATE teams
+        SET subs_used = COALESCE(subs_used, 0) + 1
+        WHERE id = NEW.team_id;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_update_substitution_usage_count
+AFTER UPDATE ON substitutions
+FOR EACH ROW
+EXECUTE FUNCTION update_substitution_usage_count();
