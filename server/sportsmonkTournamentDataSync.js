@@ -195,7 +195,10 @@ async function sportsmonkTournamentDataSync() {
               const existingMap = new Map(existingTeams.map((t) => [t.sportsmonk_id, t.id]));
               for (const team of teams) {
                 if (existingMap.has(team.sportsmonk_id)) {
-                  team.id = existingMap.get(team.sportsmonk_id);
+                  const existingId = existingMap.get(team.sportsmonk_id);
+                  if (existingId) {
+                    team.id = existingId;
+                  }
                 }
               }
             }
@@ -205,7 +208,7 @@ async function sportsmonkTournamentDataSync() {
             const { error: teamsError } = await supabase
               .from('tournament_teams')
               .upsert(teams, {
-                onConflict: 'id'
+                onConflict: 'tournament_league_id,tournament_season_id,tournament_stage_id,sportsmonk_id'
               });
 
             if (teamsError) {
