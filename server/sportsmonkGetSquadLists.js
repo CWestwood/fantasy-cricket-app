@@ -52,13 +52,20 @@ async function sportsmonkGetSquadLists() {
       try {
         // Fetch teams for this tournament from tournament_teams
         console.log('Querying tournament_teams for tournament', tournament.id);
-        const { data: tournamentTeams, error: ttError } = await supabase
+        let ttQuery = supabase
           .from('tournament_teams')
           .select('*')
           .eq('tournament_season_id', tournament.season_id)
           .eq('tournament_league_id', tournament.league_id);
-          
-          
+
+        if (tournament.stage_id) {
+          ttQuery = ttQuery.eq('tournament_stage_id', tournament.stage_id);
+        } else {
+          ttQuery = ttQuery.is('tournament_stage_id', null);
+        }
+
+        const { data: tournamentTeams, error: ttError } = await ttQuery;
+
         if (ttError) {
           console.error('Error fetching tournament_teams:', ttError);
           await logger.logError('fetch_tournament_teams', ttError);
@@ -120,6 +127,12 @@ async function sportsmonkGetSquadLists() {
                 .eq('sportsmonk_id', player.id)
                 .eq('tournament_season_id', tournament.season_id)
                 .eq('tournament_league_id', tournament.league_id);
+
+              if (tournament.stage_id) {
+                query = query.eq('tournament_stage_id', tournament.stage_id);
+              } else {
+                query = query.is('tournament_stage_id', null);
+              }
 
               if (teamName) {
                 query = query.eq('team_name', teamName);
