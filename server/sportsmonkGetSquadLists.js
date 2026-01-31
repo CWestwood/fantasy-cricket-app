@@ -56,9 +56,9 @@ async function sportsmonkGetSquadLists() {
           .from('tournament_teams')
           .select('*')
           .eq('tournament_season_id', tournament.season_id)
-          .eq('tournament_league_id', tournament.league_id)
-          .eq('tournament_stage_id', tournament.stage_id);
-
+          .eq('tournament_league_id', tournament.league_id);
+          
+          
         if (ttError) {
           console.error('Error fetching tournament_teams:', ttError);
           await logger.logError('fetch_tournament_teams', ttError);
@@ -119,8 +119,7 @@ async function sportsmonkGetSquadLists() {
                 .select('*')
                 .eq('sportsmonk_id', player.id)
                 .eq('tournament_season_id', tournament.season_id)
-                .eq('tournament_league_id', tournament.league_id)
-                .eq('tournament_stage_id', tournament.stage_id);
+                .eq('tournament_league_id', tournament.league_id);
 
               if (teamName) {
                 query = query.eq('team_name', teamName);
@@ -154,7 +153,7 @@ async function sportsmonkGetSquadLists() {
                   country_name: existingPlayer.country_name ?? null,
                   country_id: player.country_id ?? existingPlayer.country_id ?? null,
                   role: role ?? existingPlayer.role ?? null,
-                  tournament_stage_id: tournament.stage_id,
+                  tournament_stage_id: tournament.stage_id ?? null,
                   tournament_league_id: tournament.league_id,
                   tournament_season_id: tournament.season_id,
                   tournament_id: tournament.id,
@@ -171,7 +170,7 @@ async function sportsmonkGetSquadLists() {
                   country_name: null,
                   country_id: player.country_id ?? null,
                   role: role,
-                  tournament_stage_id: tournament.stage_id,
+                  tournament_stage_id: tournament.stage_id ?? null,
                   tournament_league_id: tournament.league_id,
                   tournament_season_id: tournament.season_id,
                   tournament_id: tournament.id,
