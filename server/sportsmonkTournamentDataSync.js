@@ -136,6 +136,7 @@ async function sportsmonkTournamentDataSync() {
               const teamKey = `${tournament.league_id}-${tournament.stage_id}-${tournament.season_id}-${localTeam.id}`;
               if (!teamsMap.has(teamKey)) {
                 teamsMap.set(teamKey, {
+                  id: uuidv4(),
                   tournament_id: tournament.id,
                   tournament_league_id: tournament.league_id,
                   tournament_stage_id: tournament.stage_id,
@@ -174,12 +175,37 @@ async function sportsmonkTournamentDataSync() {
         if (teamsMap.size > 0) {
           try {
             const teams = Array.from(teamsMap.values());
+
+            // Fetch existing teams to handle NULL stage_id correctly and avoid duplicates
+            let existingTeamsQuery = supabase
+              .from('tournament_teams')
+              .select('id, sportsmonk_id')
+              .eq('tournament_league_id', tournament.league_id)
+              .eq('tournament_season_id', tournament.season_id);
+
+            if (tournament.stage_id) {
+              existingTeamsQuery = existingTeamsQuery.eq('tournament_stage_id', tournament.stage_id);
+            } else {
+              existingTeamsQuery = existingTeamsQuery.is('tournament_stage_id', null);
+            }
+
+            const { data: existingTeams } = await existingTeamsQuery;
+
+            if (existingTeams && existingTeams.length > 0) {
+              const existingMap = new Map(existingTeams.map((t) => [t.sportsmonk_id, t.id]));
+              for (const team of teams) {
+                if (existingMap.has(team.sportsmonk_id)) {
+                  team.id = existingMap.get(team.sportsmonk_id);
+                }
+              }
+            }
+
             console.log(`Upserting ${teams.length} unique teams for tournament ${tournament.name}`);
 
             const { error: teamsError } = await supabase
               .from('tournament_teams')
               .upsert(teams, {
-                onConflict: 'tournament_league_id,tournament_stage_id,tournament_season_id,sportsmonk_id'
+                onConflict: 'id'
               });
 
             if (teamsError) {
