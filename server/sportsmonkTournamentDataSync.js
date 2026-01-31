@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const { v4: uuidv4 } = require('uuid');
 
 async function sportsmonkTournamentDataSync() {
   const supabaseUrl = process.env.SUPABASE_URL;
