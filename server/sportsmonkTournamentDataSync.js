@@ -176,32 +176,28 @@ async function sportsmonkTournamentDataSync() {
           try {
             const teams = Array.from(teamsMap.values());
 
-            // Fetch existing teams to handle NULL stage_id correctly and avoid duplicates
-            let existingTeamsQuery = supabase
+            // Fetch existing teams - check by sportsmonk_id to find ANY existing team
+            const { data: existingTeams } = await supabase
               .from('tournament_teams')
-              .select('id, sportsmonk_id')
-              .eq('tournament_league_id', tournament.league_id)
-              .eq('tournament_season_id', tournament.season_id);
-
-            if (tournament.stage_id) {
-              existingTeamsQuery = existingTeamsQuery.eq('tournament_stage_id', tournament.stage_id);
-            } else {
-              existingTeamsQuery = existingTeamsQuery.is('tournament_stage_id', null);
-            }
-
-            const { data: existingTeams } = await existingTeamsQuery;
+              .select('id, sportsmonk_id, tournament_league_id, tournament_season_id, tournament_stage_id')
+              .in('sportsmonk_id', teams.map(t => t.sportsmonk_id));
 
             if (existingTeams && existingTeams.length > 0) {
-              const existingMap = new Map(existingTeams.map((t) => [t.sportsmonk_id, t.id]));
               for (const team of teams) {
-                if (existingMap.has(team.sportsmonk_id)) {
-                  const existingId = existingMap.get(team.sportsmonk_id);
-                  if (existingId) {
-                    team.id = existingId;
-                  }
+                // Find exact match: same sportsmonk_id AND same tournament context
+                const exactMatch = existingTeams.find(
+                  et => et.sportsmonk_id === team.sportsmonk_id &&
+                        et.tournament_league_id === team.tournament_league_id &&
+                        et.tournament_season_id === team.tournament_season_id &&
+                        et.tournament_stage_id === team.tournament_stage_id
+                );
+                
+                if (exactMatch && exactMatch.id) {
+                  team.id = exactMatch.id;
                 }
               }
             }
+
 
             console.log(`Upserting ${teams.length} unique teams for tournament ${tournament.name}`);
 
