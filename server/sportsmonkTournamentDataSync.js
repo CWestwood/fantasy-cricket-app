@@ -189,7 +189,7 @@ async function sportsmonkTournamentDataSync() {
                   et => et.sportsmonk_id === team.sportsmonk_id &&
                         et.tournament_league_id === team.tournament_league_id &&
                         et.tournament_season_id === team.tournament_season_id &&
-                        et.tournament_stage_id === team.tournament_stage_id
+                        (et.tournament_stage_id === team.tournament_stage_id || (et.tournament_stage_id === null && team.tournament_stage_id === null))
                 );
                 
                 if (exactMatch && exactMatch.id) {
@@ -204,7 +204,7 @@ async function sportsmonkTournamentDataSync() {
             const { error: teamsError } = await supabase
               .from('tournament_teams')
               .upsert(teams, {
-                onConflict: 'tournament_league_id,tournament_season_id,tournament_stage_id,sportsmonk_id'
+                onConflict: 'id'
               });
 
             if (teamsError) {
