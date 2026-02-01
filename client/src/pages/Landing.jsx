@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import Login from "./LoginPage";
-import logoNoBackground from "../assets/images/logo-no-background.svg";
+import logoNoBackground from "../assets/images/madsports_logo.svg";
 
 export default function Landing({ onNavigate }) {
   const navigate = useNavigate();

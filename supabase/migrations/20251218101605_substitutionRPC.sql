@@ -39,6 +39,7 @@ BEGIN
       processed_at = now()
   WHERE id = s.id;
 
+
 EXCEPTION WHEN OTHERS THEN
   UPDATE substitutions
   SET status = 'failed',

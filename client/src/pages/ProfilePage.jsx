@@ -12,6 +12,7 @@ const ProfilePage = ({ onNavigate }) => {
     updateUserUsername,
     updateUserTeamName,
     deleteUserAccount,
+    activityState,
   } = useTeam();
 
   const [newUsername, setNewUsername] = useState(username || "");
@@ -22,6 +23,7 @@ const ProfilePage = ({ onNavigate }) => {
   const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
 
   const CONFIRMATION_PHRASE = "Delete my account";
+  const isLive = activityState === "live";
 
   const handleUpdateUsername = async (e) => {
     e.preventDefault();
@@ -79,6 +81,7 @@ const ProfilePage = ({ onNavigate }) => {
         {/* Change Username */}
         <div className="bg-card-light rounded-2xl shadow-card p-6 space-y-4">
           <h2 className="text-lg font-semibold">Change Your Name</h2>
+          {isLive && <p className="text-xs text-yellow-500">Cannot change username during a live tournament.</p>}
           <form onSubmit={handleUpdateUsername} className="space-y-3">
             <Input
               id="username"
@@ -86,8 +89,10 @@ const ProfilePage = ({ onNavigate }) => {
               value={newUsername}
               onChange={(e) => setNewUsername(e.target.value)}
               placeholder="Enter your new username"
+              disabled={isLive}
+              className={isLive ? "opacity-50 cursor-not-allowed" : ""}
             />
-            <Button type="submit" variant="primary" className="w-full py-2">
+            <Button type="submit" variant="primary" className={`w-full py-2 ${isLive ? "opacity-50 cursor-not-allowed" : ""}`} disabled={isLive}>
               Update Username
             </Button>
           </form>
@@ -96,6 +101,7 @@ const ProfilePage = ({ onNavigate }) => {
         {/* Change Team Name */}
         <div className="bg-card-light rounded-2xl shadow-card p-6 space-y-4">
           <h2 className="text-lg font-semibold">Change Team Name</h2>
+          {isLive && <p className="text-xs text-yellow-500">Cannot change team name during a live tournament.</p>}
           <form onSubmit={handleUpdateTeamName} className="space-y-3">
             <Input
               id="teamName"
@@ -103,8 +109,10 @@ const ProfilePage = ({ onNavigate }) => {
               value={newTeamName}
               onChange={(e) => setNewTeamName(e.target.value)}
               placeholder="Enter your new team name"
+              disabled={isLive}
+              className={isLive ? "opacity-50 cursor-not-allowed" : ""}
             />
-            <Button type="submit" variant="primary" className="w-full py-2">
+            <Button type="submit" variant="primary" className={`w-full py-2 ${isLive ? "opacity-50 cursor-not-allowed" : ""}`} disabled={isLive}>
               Update Team Name
             </Button>
           </form>

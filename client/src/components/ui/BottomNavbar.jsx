@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiBarChart2, FiCalendar, FiMenu, FiX, FiClipboard } from "react-icons/fi";
+import { FiBarChart2, FiCalendar, FiMenu, FiX, FiClipboard, FiBook } from "react-icons/fi";
+import { GoTrophy } from "react-icons/go";
 import { MdOutlineSportsCricket } from "react-icons/md";
 import { supabase } from "../../utils/supabaseClient";
 import { useTeam } from "../../context/TeamContext";
@@ -20,27 +21,21 @@ const BottomNavbar = ({ onNavigate }) => {
   const [isVisible, setIsVisible] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
-  const { isTeamLocked } = useTeam();
+  const { isTeamLocked, activityState } = useTeam();
+  const isRegistering = activityState === "registering";
 
-  // Effect to handle showing/hiding the navbar on scroll
   useEffect(() => {
     let lastScrollY = window.scrollY;
-
     const handleScroll = () => {
       if (window.scrollY > lastScrollY && window.scrollY > 100) {
-        // Scrolling down
         setIsVisible(false);
       } else {
-        // Scrolling up
         setIsVisible(true);
       }
       lastScrollY = window.scrollY;
     };
-
     window.addEventListener("scroll", handleScroll);
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const handleLogout = async () => {
@@ -48,38 +43,45 @@ const BottomNavbar = ({ onNavigate }) => {
     navigate("/login");
   };
 
+  // Define navbar items per state
+  const navItems = isRegistering
+    ? [
+        { icon: <FiClipboard size={22} />, label: "Team Selection", route: "/team" },
+        { icon: <MdOutlineSportsCricket size={22} style={{ transform: "rotate(190deg)" }} />, label: "My Team", route: "/my-team" },
+        { icon: <FiCalendar size={22} />, label: "Schedule", route: "/schedule" },
+        { icon: <FiBook size={22} />, label: "Rules", route: "/tournament-rules" },
+      ]
+    : [
+        { icon: <MdOutlineSportsCricket size={22} style={{ transform: "rotate(190deg)" }} />, label: "My Team", route: "/my-team" },
+        { icon: <FiBarChart2 size={22} />, label: "Player Stats", route: "/player-stats" },
+        { icon: <GoTrophy size={22} />, label: "Leaderboard", route: "/leaderboard" },  
+        { icon: <FiCalendar size={22} />, label: "Schedule", route: "/schedule" },
+      ];
+
+  // Items that only appear in the sidebar menu (not in navbar)
+  const sidebarOnlyItems = isRegistering
+    ? [] // nothing extra during registration
+    : [
+        { label: "Tournament Rules", route: "/tournament-rules" },
+      ];
+
   return (
     <>
-      {/* Main Navigation Bar */}
       <nav
         className={`fixed bottom-0 left-0 right-0 h-16 bg-dark-600/80 backdrop-blur-sm border-t border-dark-400 z-40 transition-transform duration-300 ease-in-out ${
           isVisible ? "translate-y-0" : "translate-y-full"
         }`}
       >
-        <div className={`max-w-5xl mx-auto h-full grid ${isTeamLocked ? 'grid-cols-4' : 'grid-cols-5'}`}>
-          {!isTeamLocked && (
+        {/* 4 items + Menu button = 5 columns, always consistent */}
+        <div className="max-w-5xl mx-auto h-full grid grid-cols-5">
+          {navItems.map((item) => (
             <NavItem
-              icon={<FiClipboard size={22} />}
-              label="Team Selection"
-              onClick={() => navigate("/team")}
+              key={item.label}
+              icon={item.icon}
+              label={item.label}
+              onClick={() => navigate(item.route)}
             />
-          )}
-          <NavItem
-            icon={<MdOutlineSportsCricket size={22} style={{ transform: 'rotate(190deg)' }} />}
-            label="My Team"
-            onClick={() => navigate("/my-team")}
-          />
-          <NavItem
-            icon={<FiBarChart2 size={22} />}
-            label="Player Stats"
-            onClick={() => navigate("/player-stats")}
-          />
-          
-          <NavItem
-            icon={<FiCalendar size={22} />}
-            label="Schedule"
-            onClick={() => navigate("/schedule")}
-          />
+          ))}
           <NavItem
             icon={<FiMenu size={22} />}
             label="Menu"
@@ -102,21 +104,15 @@ const BottomNavbar = ({ onNavigate }) => {
             </button>
           </div>
           <div className="flex flex-col space-y-4">
-            {/* Add other menu items here */}
-            <button 
-              onClick={() => navigate("/leaderboard")} 
-              className="text-left w-full px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-dark-400"
-            > 
-            Leaderboard
-            </button>
-
-             <button 
-              onClick={() => navigate("/tournament-rules")} 
-              className="text-left w-full px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-dark-400"
-            > 
-            Tournament Rules
-            </button>
-            
+            {sidebarOnlyItems.map((item) => (
+              <button
+                key={item.label}
+                onClick={() => { navigate(item.route); setIsMenuOpen(false); }}
+                className="text-left w-full px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-dark-400"
+              >
+                {item.label}
+              </button>
+            ))}
             <button
               onClick={handleLogout}
               className="text-left w-full px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-dark-400"
@@ -127,12 +123,8 @@ const BottomNavbar = ({ onNavigate }) => {
         </div>
       </div>
 
-      {/* Overlay for mobile menu */}
       {isMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black opacity-50 z-40"
-          onClick={() => setIsMenuOpen(false)}
-        ></div>
+        <div className="fixed inset-0 bg-black opacity-50 z-40" onClick={() => setIsMenuOpen(false)} />
       )}
     </>
   );

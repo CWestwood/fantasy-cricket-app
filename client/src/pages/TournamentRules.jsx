@@ -11,7 +11,7 @@ const TournamentRules = () => {
       </div>
 
       {/* 1. Structure */}
-      <section className="bg-dark-500 p-6 rounded-lg space-y-4">
+      <section className="bg-gradient-to-r from-primary-900/20 to-dark-500 p-6 rounded-lg border border-primary-500/30">
         <h2 className="text-xl font-bold text-white border-b border-gray-700 pb-6">Tournament Structure</h2>
         <ul className="list-none list-inside space-y-6 ml-2 text-gray-400">
           <li><span className="text-white font-semibold text-sm">Group Stage</span> 
@@ -41,7 +41,7 @@ const TournamentRules = () => {
       </section>
 
       {/* 2. Team Composition */}
-      <section className="bg-dark-500 p-6 rounded-lg space-y-4">
+      <section className="bg-gradient-to-r from-primary-900/20 to-dark-500 p-6 rounded-lg border border-primary-500/30">
         <h2 className="text-xl font-bold text-white border-b border-gray-700 pb-2">Team Composition</h2>
         <div className="grid md:grid-cols-2 gap-6">
           <div>
@@ -51,6 +51,7 @@ const TournamentRules = () => {
               <li>3 Bowlers (minimum)</li>
               <li>1 Wicketkeeper (maximum)</li>
               <li>4 Free Choices <span className="text-xs">(batters/bowlers/allrounders)</span></li>
+              <li className="font-bold"> with </li>
               <li className="text-yellow-400">1 Designated Captain <span className="text-xs">(see Bonus Multipliers)</span></li>
             </ul>
           </div>
@@ -65,7 +66,7 @@ const TournamentRules = () => {
       </section>
 
       {/* 3. Scoring Tables */}
-      <section className="bg-dark-500 p-6 rounded-lg space-y-6">
+      <section className="bg-gradient-to-r from-primary-900/20 to-dark-500 p-6 rounded-lg border border-primary-500/30">
         <h2 className="text-xl font-bold text-white border-b border-gray-700 pb-2">Scoring System           
         </h2>
 
@@ -77,7 +78,7 @@ const TournamentRules = () => {
         
         {/* Batting Table */}
         <div>
-          <h3 className="text-lg font-semibold text-primary-500 mb-3">Batting</h3>
+          <h3 className="text-lg font-semibold text-primary-500 mb-3 p-2">Batting</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               
@@ -86,7 +87,7 @@ const TournamentRules = () => {
                 <tr><td className="p-3">Per 6 Hit</td><td className="p-3 text-center">5</td></tr>
                 <tr><td className="p-3">Score 30+ / 50+ / 100+</td><td className="p-3 text-center">10 / 25 / 50</td></tr>
                 <tr><td className="p-3 text-red-600">Duck (Out for 0 runs)</td><td className="p-3 text-center text-red-600">-10</td></tr>
-                <tr><td className="p-3">SR &gt; 200(15+ balls)</td><td className="p-3 text-center">35</td></tr>
+                <tr><td className="p-3">SR &gt; 200 (10+ balls)</td><td className="p-3 text-center">35</td></tr>
                 <tr><td className="p-3 text-red-600">SR &lt; 100 (15+ balls)</td><td className="p-3 text-center text-red-600">-10</td></tr>
               </tbody>
             </table>
@@ -100,7 +101,8 @@ const TournamentRules = () => {
             <table className="w-full text-left text-sm">
               <tbody className="divide-y divide-gray-700">
                 <tr><td className="p-3">Per Wicket</td><td className="p-3 text-center">15</td></tr>
-                <tr><td className="p-3">Per Dot Ball</td><td className="p-3 text-center">3</td></tr>
+                <tr><td className="p-3">Per Maiden Over</td><td className="p-3 text-center">25</td></tr>
+                <tr><td className="p-3 text-red-600">Per No Ball or Wide</td><td className="p-3 text-center text-red-600">-1</td></tr>
                 <tr><td className="p-3">3+ / 5+ Wickets</td><td className="p-3 text-center">30 / 75</td></tr>
                 <tr><td className="p-3">ER &lt; 8 (at least 2.0 overs)</td><td className="p-3 text-center">25</td></tr>
                 <tr><td className="p-3 text-red-600">ER &gt; 10 (at least 1.0 overs)</td><td className="p-3 text-center text-red-600">-15</td></tr>

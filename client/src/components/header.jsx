@@ -1,10 +1,12 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import logoNoBackground from "../../assets/images/logo-no-background.svg";
 import { FiUser } from "react-icons/fi";
 import { useTeam } from "../../context/TeamContext";
 
 const Header = ({ onNavigate }) => {
   const { user } = useTeam();
+  const navigate = useNavigate();
 
   return (
     <header className="bg-card-dark text-white p-3 shadow-card sticky top-0 z-50">
@@ -25,7 +27,7 @@ const Header = ({ onNavigate }) => {
         <div className="flex-1 flex justify-end">
           {user && (
             <button
-              onClick={() => onNavigate("profile")}
+              onClick={() => navigate("/profile")}
               className="bg-dark-500 p-2 rounded-full hover:bg-gray-700 transition-colors"
             >
               <FiUser size={22} className="text-gray-300" />

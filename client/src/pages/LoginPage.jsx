@@ -5,14 +5,32 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import logoNoBackground from "../assets/images/logo-no-background.svg";
 
+const INVITE_CODE = import.meta.env.VITE_INVITE_CODE;
+
 const Login = ({ onNavigate = () => {} }) => {
   const navigate = useNavigate();
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [signupCode, setSignupCode] = useState("");
+
+  const checkTournamentAndNavigate = async () => {
+    // Check for any tournament that is upcoming (registration open) or in progress
+    const { data: tournament, error } = await supabase
+      .from('tournaments')
+      .select('id')
+      .in('status', ['upcoming', 'in progress'])
+      .limit(1)
+      .maybeSingle();
+
+    if (!tournament) {
+      throw new Error("No active tournament found accepting registrations.");
+    }
+    navigate("/team");
+  };
 
   const handleEmailAuth = async (e) => {
     e.preventDefault();
@@ -21,13 +39,17 @@ const Login = ({ onNavigate = () => {} }) => {
 
     try {
       if (isSignUp) {
+        if (signupCode !== INVITE_CODE) {
+          throw new Error("Invalid sign-up code.");
+        }
+
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         // On signup, Supabase may require email confirmation depending on settings.
         if (data?.user) {
           setEmailSent(true);
           // If the user is signed in immediately, navigate to team selection
-          navigate("/team");
+          await checkTournamentAndNavigate();
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -36,7 +58,7 @@ const Login = ({ onNavigate = () => {} }) => {
         });
         if (error) throw error;
         if (data?.user) {
-          navigate("/team");
+          await checkTournamentAndNavigate();
         }
       }
     } catch (err) {
@@ -48,12 +70,19 @@ const Login = ({ onNavigate = () => {} }) => {
 
   const handleGoogleSignIn = async () => {
     setError("");
+
+    if (isSignUp && signupCode !== INVITE_CODE) {
+      setError("Invalid sign-up code.");
+      return;
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
       });
       if (error) throw error;
+      // Note: OAuth redirects handle navigation differently, usually via onAuthStateChange in App.jsx
     } catch (err) {
       setError(err?.message || String(err));
     } finally {
@@ -105,6 +134,17 @@ const Login = ({ onNavigate = () => {} }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+
+            {isSignUp && (
+              <Input
+                id="signupCode"
+                label="Sign Up Code"
+                type="text"
+                placeholder="Enter tournament code"
+                value={signupCode}
+                onChange={(e) => setSignupCode(e.target.value)}
+              />
+            )}
 
             {error && <div className="text-sm text-red-400">{error}</div>}
 

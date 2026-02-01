@@ -18,6 +18,7 @@ export default function MyTeamPage() {
     tournamentId,
     teamId,
     substitutionsRemaining,
+    activityState,
   } = useTeam();
 
   const navigate = useNavigate();
@@ -123,6 +124,22 @@ export default function MyTeamPage() {
     return sum + (playerScores[p.id]?.total || 0);
   }, 0);
 
+  const battingTotal = (displayedPlayers || selectedPlayers).reduce((sum, p) => {
+    return sum + (playerScores[p.id]?.batting || 0);
+  }, 0);
+
+  const bowlingTotal = (displayedPlayers || selectedPlayers).reduce((sum, p) => {
+    return sum + (playerScores[p.id]?.bowling || 0);
+  }, 0);  
+
+  const fieldingTotal = (displayedPlayers || selectedPlayers).reduce((sum, p) => {
+    return sum + (playerScores[p.id]?.fielding || 0);
+  }, 0);
+
+  const bonusTotal = (displayedPlayers || selectedPlayers).reduce((sum, p) => {
+    return sum + (playerScores[p.id]?.bonus || 0);
+  }, 0);
+
   // Determine displayed players' substitution status by consulting the substitutions table
   useEffect(() => {
     let mounted = true;
@@ -204,7 +221,7 @@ export default function MyTeamPage() {
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+          <div className="grid grid-cols-3 grid-rows-2 gap-2 sm:gap-4">
             {/* Leaderboard Position (clickable) */}
             <button
               type="button"
@@ -232,14 +249,23 @@ export default function MyTeamPage() {
               <p className="text-xs sm:text-sm text-gray-400 text-center">Subs Left</p>
             </div>
 
-            {/* Players Selected */}
             <div className="flex flex-col items-center justify-center bg-dark-500 rounded-lg p-3 sm:p-4">
-              <p className="text-3xl sm:text-5xl font-bold text-primary-500 mb-1 sm:mb-2">{selectedPlayers.length}/11</p>
-              <p className="text-xs sm:text-sm text-gray-400 text-center">Selected</p>
+              <p className="text-3xl sm:text-5xl font-medium text-gray-400 mb-1 sm:mb-2">{battingTotal}</p>
+              <p className="text-xs sm:text-sm text-gray-400 text-center">Batting</p>
             </div>
-          </div>
 
-        
+            <div className="flex flex-col items-center justify-center bg-dark-500 rounded-lg p-3 sm:p-4">
+              <p className="text-3xl sm:text-5xl font-medium text-gray-400 mb-1 sm:mb-2">{bowlingTotal}</p>
+              <p className="text-xs sm:text-sm text-gray-400 text-center">Bowling</p>
+            </div>
+
+            <div className="flex flex-col items-center justify-center bg-dark-500 rounded-lg p-3 sm:p-4">
+              <p className="text-3xl sm:text-5xl font-medium text-gray-400 mb-1 sm:mb-2">{(fieldingTotal + bonusTotal)}</p>
+              <p className="text-xs sm:text-sm text-gray-400 text-center">Fielding/Bonus</p>
+            </div>
+            
+          </div>
+                 
         </div>
 
           {/* Selected Players List */}
@@ -472,6 +498,7 @@ export default function MyTeamPage() {
         </div>
 
         {/* Action Buttons */}
+        {activityState === "live" && (
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center sm:justify-end">
           <button
             onClick={() => setIsSubstitutionModalOpen(true)}
@@ -485,6 +512,7 @@ export default function MyTeamPage() {
             Make Substitution
           </button>
         </div>
+        )}
 
         {/* Substitution Modal */}
         <SubstitutionModal

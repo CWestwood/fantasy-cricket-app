@@ -407,7 +407,7 @@ export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, ca
                 {/* Dropdown Menu */}
                 {showDropdown && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-dark-600 rounded-lg border border-gray-600 shadow-lg z-10 max-h-48 overflow-y-auto">
-                    {selectedPlayers.map((player) => (
+                    {selectedPlayers.filter(p => !p.is_substituted).map((player) => (
                       <button
                         key={player.id}
                         onClick={() => {

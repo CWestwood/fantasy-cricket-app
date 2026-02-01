@@ -80,8 +80,10 @@ on public.tournaments
 for select
 to authenticated
 using (
-  is_registering = true
+  status != 'completed'
 );
+
+
 
 --matches
 create table public.matches (

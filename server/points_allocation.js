@@ -66,7 +66,7 @@ async function allocatePoints() {
           const strikeRate = performance.batting_strike_rate || 0;
           const wickets = performance.bowling_wickets || 0;
           const overs = performance.bowling_overs || 0;
-          const runsConced = performance.bowling_runs_conceded || 0;
+          const runsConceded = performance.bowling_runs_conceded || 0;
           const noBallsWides = performance.bowling_noballs_wides || 0;
           const maidens = performance.bowling_maiden_overs || 0;
           const economyRate = performance.bowling_econ_rate || 0;
@@ -85,10 +85,10 @@ async function allocatePoints() {
           const is50Plus = runs >= 50;
           const is100Plus = runs >= 100;
           const is200Plus = runs >= 200;
-          const ishighRR = strikeRate >= 150 && ballsFaced >= 10;
-          const islowRR = strikeRate <= 90 && ballsFaced >= 10;
-          const ishighER = economyRate >= 9 && overs >= 2;
-          const islowER = economyRate <= 7 && overs >= 2;
+          const ishighRR = strikeRate >= 200 && ballsFaced >= 10;
+          const islowRR = strikeRate < 100 && ballsFaced >= 15;
+          const ishighER = economyRate > 10 && overs >= 1;
+          const islowER = economyRate < 8 && overs >= 2;
           const is3Wickets = wickets >= 3;
           const is5Wickets = wickets >= 5;
         

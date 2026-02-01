@@ -16,13 +16,25 @@ import BottomNavbar from "./components/ui/BottomNavbar";
 import Header from "./components/ui/header";
 import { supabase } from "./utils/supabaseClient";
 import TournamentRules from './pages/TournamentRules';
+import Footer from "./components/ui/Footer";
+
+const Layout = ({ children }) => (
+  <div className="flex flex-col min-h-screen bg-dark-500">
+    <Header />
+    <main className="flex-1 w-full">
+      {children}
+    </main>
+    <Footer />
+    <BottomNavbar onNavigate={() => {}} />
+  </div>
+);
 
 function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [session, setSession] = useState(null);
   const location = useLocation();
-  const { isTeamLocked } = useTeam();
+  const { isTeamLocked, teamId, loading: teamLoading, activityState } = useTeam();
 
   // This effect handles the initial load and auth state changes
   useEffect(() => {
@@ -70,7 +82,7 @@ function AppContent() {
   }, []);
 
   // Show loading state
-  if (isLoading) {
+  if (isLoading || (session && teamLoading)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
@@ -112,7 +124,13 @@ function AppContent() {
         path="/"
         element={
           session ? (
-            isTeamLocked ? <Navigate to="/my-team" replace /> : <Navigate to="/team" replace />
+            teamId ? (
+              <Navigate to="/my-team" replace />
+            ) : activityState === "live" ? (
+              <Navigate to="/leaderboard" replace />
+            ) : (
+              <Navigate to="/team" replace />
+            )
           ) : (
             <Landing />
           )
@@ -120,7 +138,7 @@ function AppContent() {
       />
       <Route
         path="/login"
-        element={session ? (isTeamLocked ? <Navigate to="/my-team" replace /> : <Navigate to="/team" replace />) : <Login />}
+        element={session ? <Navigate to="/" replace /> : <Login />}
       />
       <Route
         path="/team"
@@ -128,14 +146,12 @@ function AppContent() {
           session ? (
             isTeamLocked ? (
               <Navigate to="/my-team" replace />
+            ) : activityState === "live" && !teamId ? (
+              <Navigate to="/leaderboard" replace />
             ) : (
-              <>
-                <Header />
-                <main className="flex-1">
-                  <TeamSelection onNavigate={() => {}} />
-                </main>
-                <BottomNavbar onNavigate={() => {}} />
-              </>
+              <Layout>
+                <TeamSelection onNavigate={() => {}} />
+              </Layout>
             )
           ) : (
             <Navigate to="/login" replace />
@@ -146,13 +162,9 @@ function AppContent() {
           path="/profile"
           element={
             session ? (
-              <>
-                <Header />
-                <main className="flex-1">
-                  <ProfilePage />
-                </main>
-                <BottomNavbar onNavigate={() => {}} />
-              </>
+              <Layout>
+                <ProfilePage />
+              </Layout>
             ) : (
               <Navigate to="/login" replace />
             )
@@ -162,13 +174,9 @@ function AppContent() {
           path="/my-team"
           element={
             session ? (
-              <>
-                <Header />
-                <main className="flex-1">
-                  <MyTeamPage onNavigate={() => {}} />
-                </main>
-                <BottomNavbar onNavigate={() => {}} />
-              </>
+              <Layout>
+                <MyTeamPage onNavigate={() => {}} />
+              </Layout>
             ) : (
               <Navigate to="/login" replace />
             )
@@ -178,13 +186,9 @@ function AppContent() {
           path="/leaderboard"
           element={
             session ? (
-              <>
-                <Header />
-                <main className="flex-1">
-                  <LeaderboardPage onNavigate={() => {}} />
-                </main>
-                <BottomNavbar onNavigate={() => {}} />
-              </>
+              <Layout>
+                <LeaderboardPage onNavigate={() => {}} />
+              </Layout>
             ) : (
               <Navigate to="/login" replace />
             )
@@ -194,13 +198,9 @@ function AppContent() {
           path="/schedule"
           element={
             session ? (
-              <>
-                <Header />
-                <main className="flex-1">
-                  <Schedule />
-                </main>
-                <BottomNavbar onNavigate={() => {}} />
-              </>
+              <Layout>
+                <Schedule />
+              </Layout>
             ) : (
               <Navigate to="/login" replace />
             )
@@ -210,13 +210,9 @@ function AppContent() {
           path="/tournament-rules"
           element={
             session ? (
-              <>
-                <Header />
-                <main className="flex-1">
-                  <TournamentRules />
-                </main>
-                <BottomNavbar onNavigate={() => {}} />
-              </>
+              <Layout>
+                <TournamentRules />
+              </Layout>
             ) : (
               <Navigate to="/login" replace />
             )
@@ -227,13 +223,9 @@ function AppContent() {
           path="/team/:teamId"
           element={
             session ? (
-              <>
-                <Header />
-                <main className="flex-1">
-                  <TeamDetail />
-                </main>
-                <BottomNavbar onNavigate={() => {}} />
-              </>
+              <Layout>
+                <TeamDetail />
+              </Layout>
             ) : (
               <Navigate to="/login" replace />
             )
@@ -243,13 +235,9 @@ function AppContent() {
           path="/player-stats"
           element={
             session ? (
-              <>
-                <Header />
-                <main className="flex-1">
-                  <PlayerStats />
-                </main>
-                <BottomNavbar onNavigate={() => {}} />
-              </>
+              <Layout>
+                <PlayerStats />
+              </Layout>
             ) : (
               <Navigate to="/login" replace />
             )
@@ -259,13 +247,9 @@ function AppContent() {
           path="/player/:playerId"
           element={
             session ? (
-              <>
-                <Header />
-                <main className="flex-1">
-                  <PlayerProfile />
-                </main>
-                <BottomNavbar onNavigate={() => {}} />
-              </>
+              <Layout>
+                <PlayerProfile />
+              </Layout>
             ) : (
               <Navigate to="/login" replace />
             )

@@ -11,6 +11,7 @@ import WkglovesIcon from "../assets/icons/wkgloves_white.svg";
 export default function TeamSelection() {
   const [availablePlayers, setAvailablePlayers] = useState([]);
   const [displayedPlayers, setDisplayedPlayers] = useState([]);
+  const [filteredPlayers, setFilteredPlayers] = useState([]);
   const [showSuccess, setShowSuccess] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -46,6 +47,7 @@ export default function TeamSelection() {
     tournamentId,
     username,
     setUsername,
+    teamId,
   } = useTeam();
 
   // Cache team selections to localStorage
@@ -86,7 +88,7 @@ export default function TeamSelection() {
     const loadAllTeams = async () => {
       try {
         const { data, error } = await supabase
-          .from("players")
+            .from("squads")
           .select("team_name")
           .eq("tournament_id", tournamentId)
           .not("team_name", "is", null);
@@ -228,7 +230,7 @@ export default function TeamSelection() {
           .eq("tournament_id", tournamentId);
         
         if (!fallbackError && fallbackData) {
-          console.log("Fallback query succeeded, returned", fallbackData.length, "players");
+          console.log("Fallback query succeeded, returned", fallbackData.length, "squads");
           // Keep original id for database FK
           const players = fallbackData.map((p) => ({
             ...p,
@@ -255,8 +257,8 @@ export default function TeamSelection() {
     loadPlayers();
   }, [tournamentId, user?.id]);
 
-// Apply UI filters and pagination client-side against the `availablePlayers` master list
-useEffect(() => {
+  // Apply UI filters client-side against the `availablePlayers` master list
+  useEffect(() => {
   const search = (filters.search || "").trim().toLowerCase();
   const rolesActive = filters.roles.map((r) => r.toLowerCase());
   const teamsActive = filters.teams.map((t) => t.toLowerCase());
@@ -268,12 +270,15 @@ useEffect(() => {
     return true;
   });
 
-  // Reset to page 1 when filters change
-  setCurrentPage(1);
-  
-  const end = 1 * playersPerPage;
-  setDisplayedPlayers(filtered.slice(0, end));
-}, [availablePlayers, filters]);
+    setFilteredPlayers(filtered);
+    // Reset to page 1 when filters change
+    setCurrentPage(1);
+  }, [availablePlayers, filters]);
+
+  // Pagination effect
+  useEffect(() => {
+    setDisplayedPlayers(filteredPlayers.slice(0, currentPage * playersPerPage));
+  }, [filteredPlayers, currentPage]);
 
 // Close teams dropdown when clicking outside
 useEffect(() => {
@@ -592,22 +597,26 @@ useEffect(() => {
             </div>
 
             <div className="w-full md:w-96">
-              <input
-                type="text"
-                id="teamName"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-card-default bg-card-light text-center text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="Enter your team name"
-              />
-              <input
-                type="text"
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-2 text-center rounded-lg border border-card-default bg-card-light text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="Enter your name"
-              />
+              {!teamId && (
+                <>
+                  <input
+                    type="text"
+                    id="teamName"
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    className="w-full px-4 py-2 rounded-lg border border-card-default bg-card-light text-center text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Enter your team name"
+                  />
+                  <input
+                    type="text"
+                    id="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full px-4 py-2 text-center rounded-lg border border-card-default bg-card-light text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Enter your name"
+                  />
+                </>
+              )}
 
               <button
                 type="button"
@@ -664,8 +673,8 @@ useEffect(() => {
               Available Players
             </h2>
 
-            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
-              <div className="flex flex-wrap gap-0 md:gap-3">
+            <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+              <div className="flex flex-wrap items-center gap-0 md:gap-3">
                 {roles.map((role) => (
                   <button
                     key={role}
@@ -686,7 +695,7 @@ useEffect(() => {
                   <button
                     type="button"
                     onClick={() => setShowTeamsDropdown((s) => !s)}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs font-medium bg-gray-700 text-gray-200 hover:bg-gray-600"
+                    className="inline-flex items-center gap-3 px-3 py-2 rounded-full text-xs font-medium bg-gray-700 text-gray-200 hover:bg-gray-600"
                     aria-haspopup="true"
                     aria-expanded={showTeamsDropdown}
                   >
@@ -734,9 +743,7 @@ useEffect(() => {
                     </div>
                   )}
                 </div>
-              </div>
-
-              <input
+                <input
                 type="text"
                 placeholder="Search players..."
                 className="ml-full md:ml-2 px-4 py-2 rounded-full bg-dark-100 text-sm text-white placeholder-gray-400"
@@ -745,13 +752,15 @@ useEffect(() => {
                   setFilters((prev) => ({ ...prev, search: e.target.value }))
                 }
               />
+              </div>
+
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {displayedPlayers.map((player) => {
               const isSelected = selectedPlayers.some((p) => p.id === player.id);
-              const bgClass = TEAM_COLORS[player.team_name] || "bg-gray-700";
+              const bgClass = `bg-gradient-to-br ${TEAM_COLORS_gradient[player.team_name] || "from-gray-700 to-gray-900"}`;
               const isCaptain = captain?.id === player.id;
               return (
                 <div key={player.id} className="rounded-xl overflow-hidden shadow-card border border-card-default">
@@ -798,7 +807,7 @@ useEffect(() => {
             })}
           </div>
 
-          {displayedPlayers.length > 0 && displayedPlayers.length % playersPerPage === 0 && (
+          {displayedPlayers.length < filteredPlayers.length && (
             <div className="mt-6 text-center">
               <button
                 onClick={loadMorePlayers}

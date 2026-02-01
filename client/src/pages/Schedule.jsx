@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../utils/supabaseClient";
 import { useTeam } from "../context/TeamContext";
-import { TEAM_COLORS, TEAM_COLORS_gradient } from "../constants/colors";
+import { TEAM_COLORS, TEAM_COLORS_gradient, TEAM_HEX_COLORS } from "../constants/colors";
 
 export default function Schedule() {
   const { tournamentId } = useTeam();
@@ -124,6 +124,14 @@ export default function Schedule() {
     return `bg-gradient-to-br ${TEAM_COLORS_gradient[teamName] || "from-gray-600/70 to-gray-700/70"}`;
   };
 
+  const getTwoToneStyle = (team1, team2) => {
+    const c1 = TEAM_HEX_COLORS[team1] || "#374151";
+    const c2 = TEAM_HEX_COLORS[team2] || "#1f2937";
+    return {
+      background: `linear-gradient(158deg, ${c1} 50%, ${c2} 50%)`,
+    };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-dark-500 text-white py-6 flex items-center justify-center">
@@ -153,18 +161,15 @@ export default function Schedule() {
         )}
 
         {/* Filters */}
-        <div className="bg-card-light rounded-2xl shadow-card p-4 sm:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="bg-card-light rounded-2xl shadow-card p-2 sm:p-2">
+          <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Filter by Team
-              </label>
               <select
                 value={selectedTeam}
                 onChange={(e) => setSelectedTeam(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-dark-100 text-center text-white border border-card-default focus:outline-none focus:border-primary-500"
+                className="w-full px-3 py-1 rounded-lg bg-dark-100 text-center text-white border border-card-default focus:outline-none focus:border-primary-500"
               >
-                <option value="">All Teams</option>
+                <option value="">Teams</option>
                 {teams.map((team) => (
                   <option key={team} value={team}>
                     {team}
@@ -174,15 +179,12 @@ export default function Schedule() {
             </div>
 
             <div>
-              <label className="block text-sm text-center font-medium text-gray-300 mb-2">
-                Filter by Location
-              </label>
               <select
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-dark-100 text-center text-white border border-card-default focus:outline-none focus:border-primary-500"
+                className="w-full px-3 py-1 rounded-lg bg-dark-100 text-center text-white border border-card-default focus:outline-none focus:border-primary-500"
               >
-                <option value="">All Locations</option>
+                <option value="">Locations</option>
                 {locations.map((location) => (
                   <option key={location} value={location}>
                     {location}
@@ -220,7 +222,8 @@ export default function Schedule() {
                 {filteredMatches.map((match) => (
                   <div
                     key={match.id}
-                    className={`rounded-lg p-4 border-l-4 border-primary-500 ${getTeamColor(match.team1 || "")}`}
+                    className="rounded-lg p-4 border-l-4 border-primary-500 shadow-md"
+                    style={getTwoToneStyle(match.team1, match.team2)}
                   >
                     <div className="space-y-2">
                       <div>
@@ -232,14 +235,14 @@ export default function Schedule() {
 
                       <div>
                         
-                        <div className="text-sm text-gray-300">
+                        <div className="text-sm text-white/90">
                           {match.location || "Location TBD"}
                         </div>
                       </div>
 
                       <div>
                         
-                        <div className="text-sm text-gray-300">
+                        <div className="text-sm text-white/90">
                           {formatMatchTime(match.match_time)}
                         </div>
                       </div>
@@ -268,19 +271,20 @@ export default function Schedule() {
                     {filteredMatches.map((match) => (
                       <tr
                         key={match.id}
-                        className={`border-b border-gray-700 hover:bg-dark-400 transition-colors border-l-4 ${getTeamColor(match.team1 || "")}`}
+                        className="border-b border-gray-700 hover:opacity-90 transition-opacity border-l-4 border-primary-500"
+                        style={getTwoToneStyle(match.team1, match.team2)}
                       >
                         <td className="py-3 px-4 font-semibold">
                           <div className="flex text-sm items-center gap-2">
                             <span>{match.team1 || "TBD"}</span>
-                            <span className="text-gray-400 text-sm">vs</span>
+                            <span className="text-white/70 text-sm">vs</span>
                             <span>{match.team2 || "TBD"}</span>
                           </div>
                         </td>
-                        <td className="py-3 px-4 text-sm  text-gray-300">
+                        <td className="py-3 px-4 text-sm text-white/90">
                           {match.location || "Location TBD"}
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-300">
+                        <td className="py-3 px-4 text-sm text-white/90">
                           {formatMatchTime(match.match_time)}
                         </td>
                         <td className="py-3 px-4">

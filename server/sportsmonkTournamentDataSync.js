@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const { v4: uuidv4 } = require('uuid');
 
 async function sportsmonkTournamentDataSync() {
   const supabaseUrl = process.env.SUPABASE_URL;
@@ -18,131 +19,211 @@ async function sportsmonkTournamentDataSync() {
       .select('id, league_id, stage_id, season_id, name, status')
       .in('status', ['upcoming', 'in progress']);
 
-    if (tournamentsError) throw tournamentsError;
-    if (!tournaments || tournaments.length === 0) return;
+    if (tournamentsError) {
+      console.error('Error fetching tournaments:', tournamentsError);
+      throw tournamentsError;
+    }
+
+    console.log(`Found ${tournaments?.length || 0} tournaments to process from Sportsmonk`);
+
+    if (!tournaments || tournaments.length === 0) {
+      console.log('No tournaments found with status "upcoming" or "in progress"');
+      return;
+    }
 
     for (const tournament of tournaments) {
-      console.log(`Processing tournament: ${tournament.name}`);
+      console.log(
+        `Processing tournament: ${tournament.name} - League ID: ${tournament.league_id}, Season ID: ${tournament.season_id}`
+      );
+
+      // Validate tournament has required ID
+      if (!tournament.id) {
+        console.error(`Tournament missing ID: ${tournament.name}, skipping...`);
+        continue;
+      }
 
       try {
-        const apiUrl =
-          `https://cricket.sportmonks.com/api/v2.0/fixtures` +
-          `?api_token=${encodeURIComponent(sportsmonkApiKey)}` +
-          `&filter[league_id]=${tournament.league_id}` +
-          `&filter[season_id]=${tournament.season_id}` +
-          `&include=localTeam,visitorTeam,venue`;
+        const apiUrl = `https://cricket.sportmonks.com/api/v2.0/fixtures?api_token=${encodeURIComponent(
+          sportsmonkApiKey
+        )}&filter[league_id]=${tournament.league_id}&filter[season_id]=${tournament.season_id}&include=localTeam,visitorTeam,venue`;
+
+        console.log(`Fetching data from: ${apiUrl.replace(sportsmonkApiKey, '***')}`);
 
         const response = await fetch(apiUrl);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const apiData = await response.json();
-        if (!apiData?.data?.length) continue;
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        }
 
+        const apiData = await response.json();
+        console.log(`API Response received. Match count: ${apiData?.data?.length || 0}`);
+
+        if (!apiData || !apiData.data || apiData.data.length === 0) {
+          console.log(
+            `No match data found for tournament League ID: ${tournament.league_id}, Season ID: ${tournament.season_id}`
+          );
+          continue;
+        }
+
+        // Collect unique teams for batch upsertion
         const teamsMap = new Map();
 
         for (const match of apiData.data) {
-          const localTeam = match.localTeam || match.localteam;
-          const visitorTeam = match.visitorTeam || match.visitorteam;
+          try {
+            const matchDateTime = new Date(match.starting_at);
+            const matchDate = matchDateTime.toISOString().split('T')[0];
 
-          const matchDateTime = new Date(match.starting_at);
-          const matchDate = matchDateTime.toISOString().split('T')[0];
+            // Check if match already exists
+            const { data: existingMatch, error: existingMatchError } = await supabase
+              .from('matches')
+              .select('id, completed_and_captured')
+              .eq('sportsmonk_id', match.id)
+              .single();
 
-          const isLive =
-            match.status && match.status !== 'NS' && !match.winner_team_id;
+            if (existingMatchError && existingMatchError.code !== 'PGRST116') {
+              console.error('Error checking existing match:', existingMatchError);
+              throw existingMatchError;
+            }
 
-          const matchStatus =
-            match.status && match.status !== 'NS'
-              ? match.winner_team_id ? 'Finished' : 'Live'
+            // Handle case-sensitive property names from API
+            const localTeam = match.localTeam || match.localteam;
+            const visitorTeam = match.visitorTeam || match.visitorteam;
+
+            // Determine if match is currently live
+            const isLive = match.status && match.status !== 'NS' && !match.winner_team_id;
+            
+            // Determine match status
+            const matchStatus = match.status && match.status !== 'NS' 
+              ? (match.winner_team_id ? 'Finished' : 'Live')
               : 'Scheduled';
 
-          const matchRecord = {
-            sportsmonk_id: match.id,
+            const matchRecord = {
+              sportsmonk_id: match.id,
+              tournament_id: tournament.id,
+              tournament_league_id: tournament.league_id,
+              tournament_stage_id: tournament.stage_id,
+              tournament_season_id: tournament.season_id,
+              type_match: match.type,
+              match_date: matchDate,
+              match_time: matchDateTime.toISOString(),
+              match_name: localTeam && visitorTeam ? `${localTeam.name} vs ${visitorTeam.name}` : 'Unknown vs Unknown',
+              team1: localTeam?.name || 'Unknown',
+              team2: visitorTeam?.name || 'Unknown',
+              location: match.venue?.name || null,
+              status: matchStatus,
+              match_note: match.note,
+              currently_live: isLive,
+              completed_and_captured: existingMatch?.completed_and_captured || false,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+
+            // Upsert match data
+            const { error: upsertError } = await supabase.from('matches').upsert(matchRecord, {
+              onConflict: 'sportsmonk_id'
+            });
+
+            if (upsertError) {
+              console.error(`Error upserting match ${match.id}:`, upsertError);
+              continue;
+            }
+
+            console.log(`Successfully upserted match: ${match.id} - ${matchRecord.team1} vs ${matchRecord.team2}`);
+
+            // Collect teams for batch upsertion (using team sportsmonk_id as key)
+            const now = new Date().toISOString();
+
+            if (localTeam?.id) {
+              const teamKey = `${tournament.league_id}-${tournament.stage_id}-${tournament.season_id}-${localTeam.id}`;
+              if (!teamsMap.has(teamKey)) {
+                teamsMap.set(teamKey, {
+                  tournament_id: tournament.id,
+                  tournament_league_id: tournament.league_id,
+                  tournament_stage_id: tournament.stage_id,
+                  tournament_season_id: tournament.season_id,
+                  sportsmonk_id: localTeam.id,
+                  team_name: localTeam.name || null,
+                  created_at: now,
+                  updated_at: now
+                });
+              }
+            }
+
+            if (visitorTeam?.id) {
+              const teamKey = `${tournament.league_id}-${tournament.stage_id}-${tournament.season_id}-${visitorTeam.id}`;
+              if (!teamsMap.has(teamKey)) {
+                teamsMap.set(teamKey, {
+                  tournament_id: tournament.id,
+                  tournament_league_id: tournament.league_id,
+                  tournament_stage_id: tournament.stage_id,
+                  tournament_season_id: tournament.season_id,
+                  sportsmonk_id: visitorTeam.id,
+                  team_name: visitorTeam.name || null,
+                  created_at: now,
+                  updated_at: now
+                });
+              }
+            }
+          } catch (matchError) {
+            console.error(`Error processing match ${match.id}:`, matchError);
+            continue;
+          }
+        }
+
+        const teamKey = `${tournament.id}-${localTeam.id}`;
+
+        if (!teamsMap.has(teamKey)) {
+          teamsMap.set(teamKey, {
             tournament_id: tournament.id,
             tournament_league_id: tournament.league_id,
             tournament_stage_id: tournament.stage_id,
             tournament_season_id: tournament.season_id,
-            type_match: match.type,
-            match_date: matchDate,
-            match_time: matchDateTime.toISOString(),
-            match_name: localTeam && visitorTeam
-              ? `${localTeam.name} vs ${visitorTeam.name}`
-              : 'Unknown vs Unknown',
-            team1: localTeam?.name || 'Unknown',
-            team2: visitorTeam?.name || 'Unknown',
-            location: match.venue?.name || null,
-            status: matchStatus,
-            match_note: match.note,
-            currently_live: isLive,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
+            sportsmonk_id: localTeam.id,
+            team_name: localTeam.name || null,
+            created_at: now,
+            updated_at: now
+          });
+        }
+            console.log(`Upserting ${teams.length} unique teams for tournament ${tournament.name}`);
 
-          await supabase
-            .from('matches')
-            .upsert(matchRecord, { onConflict: 'sportsmonk_id' });
-
-          const now = new Date().toISOString();
-
-          if (localTeam?.id) {
-            const key = `${tournament.id}-${localTeam.id}`;
-            if (!teamsMap.has(key)) {
-              teamsMap.set(key, {
-                tournament_id: tournament.id,
-                tournament_league_id: tournament.league_id,
-                tournament_stage_id: tournament.stage_id,
-                tournament_season_id: tournament.season_id,
-                sportsmonk_id: localTeam.id,
-                team_name: localTeam.name || null,
-                created_at: now,
-                updated_at: now
+            const { error: teamsError } = await supabase
+              .from('tournament_teams')
+              .upsert(teams, {
+                onConflict: 'tournament_id,sportsmonk_id'
               });
-            }
-          }
 
-          if (visitorTeam?.id) {
-            const key = `${tournament.id}-${visitorTeam.id}`;
-            if (!teamsMap.has(key)) {
-              teamsMap.set(key, {
-                tournament_id: tournament.id,
-                tournament_league_id: tournament.league_id,
-                tournament_stage_id: tournament.stage_id,
-                tournament_season_id: tournament.season_id,
-                sportsmonk_id: visitorTeam.id,
-                team_name: visitorTeam.name || null,
-                created_at: now,
-                updated_at: now
-              });
+            if (teamsError) {
+              console.error(`Error upserting tournament_teams for tournament ${tournament.id}:`, teamsError);
+              // Don't throw - log and continue with next tournament
+            } else {
+              console.log(`Successfully upserted ${teams.length} teams for tournament ${tournament.name}`);
             }
+          } catch (teamsBatchError) {
+            console.error(`Exception while batch upserting tournament_teams for tournament ${tournament.id}:`, teamsBatchError);
+            // Don't throw - log and continue with next tournament
           }
         }
-
-        if (teamsMap.size > 0) {
-          const teams = Array.from(teamsMap.values());
-          console.log(`Upserting ${teams.length} teams`);
-
-          const { error: teamsError } = await supabase
-            .from('tournament_teams')
-            .upsert(teams, {
-              onConflict: 'tournament_id,sportsmonk_id'
-            });
-
-          if (teamsError) console.error(teamsError);
-        }
-
       } catch (tournamentError) {
-        console.error(`Tournament failed: ${tournament.name}`, tournamentError);
+        console.error(
+          `Error processing tournament League ID: ${tournament.league_id}, Season ID: ${tournament.season_id}:`,
+          tournamentError
+        );
         continue;
       }
     }
 
-    console.log('Sportsmonk sync completed.');
+    console.log('Sportsmonk tournament data synchronization completed successfully.');
   } catch (error) {
-    console.error('Fatal error:', error);
+    console.error('Fatal error in sportsmonkTournamentDataSync:', error);
     throw error;
   }
 }
 
+// Export the function for GitHub Actions
 module.exports = sportsmonkTournamentDataSync;
 
 if (require.main === module) {
-  sportsmonkTournamentDataSync().catch(() => process.exit(1));
+  sportsmonkTournamentDataSync().catch(err => {
+    console.error('Fatal:', err);
+    process.exit(1);
+  });
 }

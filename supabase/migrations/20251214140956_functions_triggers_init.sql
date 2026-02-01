@@ -1190,15 +1190,7 @@ WHEN (NEW.tournament_id IS NULL)
 EXECUTE FUNCTION add_tournament_id_to_process_queue();
 
 CREATE OR REPLACE FUNCTION calculate_live_team_scores_for_match(p_match_id uuid)
-RETURNS TABLE (
-    team_id uuid,
-    tournament_id uuid,
-    batting_total numeric,
-    bowling_total numeric,
-    fielding_total numeric,
-    bonus_total numeric,
-    final_total numeric
-)
+RETURNS void
 LANGUAGE sql
 AS $$
     WITH live_scoring AS (
@@ -1214,7 +1206,7 @@ AS $$
             tp.is_substituted
         FROM team_players tp
         JOIN teams t ON t.id = tp.team_id
-        JOIN scores s ON s.player_id = tp.player_id
+        JOIN live_scoring s ON s.player_id = tp.player_id
         JOIN matches m ON m.id = s.match_id
         WHERE s.match_id = p_match_id
           AND (tp.removed_at IS NULL OR tp.removed_at > m.match_time)
@@ -1231,6 +1223,16 @@ AS $$
         FROM live_scoring
         GROUP BY team_id, tournament_id
     )
-    SELECT * FROM team_totals;
+    -- Actually INSERT or UPDATE your target table here
+    INSERT INTO live_userteam_points (team_id, tournament_id, match_id, batting, bowling, fielding, bonus, total)
+    SELECT team_id, tournament_id, p_match_id, batting_total, bowling_total, fielding_total, bonus_total, final_total
+    FROM team_totals
+    ON CONFLICT (team_id, match_id) -- adjust based on your unique constraint
+    DO UPDATE SET
+        batting = EXCLUDED.batting,
+        bowling = EXCLUDED.bowling,
+        fielding = EXCLUDED.fielding,
+        bonus = EXCLUDED.bonus,
+        total = EXCLUDED.total,
+        updated_at = NOW();
 $$;
-

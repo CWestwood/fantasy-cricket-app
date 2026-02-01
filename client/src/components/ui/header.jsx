@@ -1,17 +1,19 @@
 import React from "react";
-import logoNoBackground from "../../assets/images/logo-no-background.svg";
+import { useNavigate } from "react-router-dom";
+import logoNoBackground from "../../assets/images/madsports_logo.svg";
 import { FiUser } from "react-icons/fi";
 import { useTeam } from "../../context/TeamContext";
 
 const Header = ({ onNavigate }) => {
   const { user } = useTeam();
+  const navigate = useNavigate();
 
   return (
-    <header className="bg-card-dark text-white p-3 shadow-card sticky top-0 z-50">
-      <div className="max-w-5xl mx-auto flex justify-between items-center h-12">
+    <header className="bg-card-dark text-white p-2 shadow-card sticky top-0 z-50">
+      <div className="max-w-5xl mx-auto flex justify-between items-center h-10">
         {/* Left: Logo */}
-        <div className="flex-1 flex justify-start">
-          <img src={logoNoBackground} alt="Logo" className="h-10 w-auto" />
+        <div className="flex-1 flex ">
+          <img src={logoNoBackground} alt="Logo" className="h-50 w-auto" />
         </div>
 
         {/* Center: Tournament Name */}
@@ -25,7 +27,7 @@ const Header = ({ onNavigate }) => {
         <div className="flex-1 flex justify-end">
           {user && (
             <button
-              onClick={() => onNavigate("profile")}
+              onClick={() => navigate("/profile")}
               className="bg-dark-500 p-2 rounded-full hover:bg-gray-700 transition-colors"
             >
               <FiUser size={22} className="text-gray-300" />

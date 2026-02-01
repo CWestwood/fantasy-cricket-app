@@ -21,6 +21,7 @@ export const TeamProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [tournamentId, setTournamentId] = useState(null);
   const [username, setUsername] = useState("");
+  const [activityState, setActivityState] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -31,8 +32,9 @@ export const TeamProvider = ({ children }) => {
         setCaptain(null);
         setTeamName("");
         setSubstitutionsRemaining(3);
+        setLoading(false);
       }
-      setLoading(false);
+      // If user exists, keep loading=true until loadTournament/loadUserTeam completes
     });
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -42,6 +44,9 @@ export const TeamProvider = ({ children }) => {
         setCaptain(null);
         setTeamName("");
         setSubstitutionsRemaining(3);
+        setLoading(false);
+      } else {
+        setLoading(true);
       }
     });
 
@@ -60,11 +65,17 @@ export const TeamProvider = ({ children }) => {
     const loadTournament = async () => {
       const { data } = await supabase
         .from("tournaments")
-        .select("id")
-        .eq("name", "Big Bash 2025/6") // Adjust to match your tournament name
-        .single();
+        .select("id, activity_state")
+        .in("status", ["upcoming", "in progress"])
+        .limit(1)
+        .maybeSingle();
       
-      if (data) setTournamentId(data.id);
+      if (data) {
+        setTournamentId(data.id);
+        setActivityState(data.activity_state);
+      }
+      // If no tournament found, stop loading. If found, wait for loadUserTeam.
+      if (!data) setLoading(false);
     };
     
     if (user) loadTournament();
@@ -141,6 +152,8 @@ export const TeamProvider = ({ children }) => {
       } catch (error) {
         console.error("Error loading user team:", error.message);
       }
+      // Finished loading critical data
+      setLoading(false);
     };
 
     loadUserTeam();
@@ -274,7 +287,7 @@ export const TeamProvider = ({ children }) => {
   };
 
   const validateTeamLimit = (players) => {
-    const MAX_PER_team = 4;
+    const MAX_PER_team = 3;
     const teamCounts = players.reduce((acc, player) => {
       const team = player.team_name || "Unknown";
       acc[team] = (acc[team] || 0) + 1;
@@ -374,6 +387,7 @@ export const TeamProvider = ({ children }) => {
     updateUserUsername,
     updateUserTeamName,
     deleteUserAccount,
+    activityState,
   };
 
   return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
