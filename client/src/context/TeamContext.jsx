@@ -272,15 +272,11 @@ export const TeamProvider = ({ children }) => {
     }
 
     // For partial teams, only validate basic rules:
-    // - At least 1 wicketkeeper
+    
     // - No more than total allowed players
     return {
-      isValid: (composition.wicketkeeper || 0) >= 1 && total <= 11,
+      isValid: total <= 11,
       errors: {
-        Wicketkeeper:
-          (composition.wicketkeeper || 0) < 1
-            ? "Need at least 1 wicketkeeper"
-            : null,
         Total: total > 11 ? "Cannot have more than 11 players" : null,
       },
     };
