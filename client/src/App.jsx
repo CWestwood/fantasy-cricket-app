@@ -18,7 +18,7 @@ import { supabase } from "./utils/supabaseClient";
 import TournamentRules from './pages/TournamentRules';
 import Footer from "./components/ui/Footer";
 import { Analytics } from "@vercel/analytics/react";
-import SpeedInsights from "./components/SpeedInsights";
+import SpeedInsights from "@vercel/speed-insights/next";
 
 const Layout = ({ children }) => (
   <div className="flex flex-col min-h-screen bg-dark-500">
