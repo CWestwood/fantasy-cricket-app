@@ -53,6 +53,7 @@ export default function TeamSelection() {
 
   // Cache team selections to localStorage
   useEffect(() => {
+    console.log("Cache write effect — tournamentId:", tournamentId, "players:", selectedPlayers.length);
     if (!tournamentId) return;
     
     const cacheKey = `fantasy-cricket-team-${tournamentId}`;
@@ -68,6 +69,7 @@ export default function TeamSelection() {
 
   // Load team selections from localStorage on mount
   useEffect(() => {
+    console.log("Cache read effect — tournamentId:", tournamentId, "teamId:", teamId, "selectedPlayers:", selectedPlayers.length);
     if (!tournamentId) return;
 
     // If a team is already saved in the database (teamId exists), 
