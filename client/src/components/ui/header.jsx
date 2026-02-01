@@ -13,7 +13,11 @@ const Header = ({ onNavigate }) => {
       <div className="max-w-5xl mx-auto flex justify-between items-center h-10">
         {/* Left: Logo */}
         <div className="flex-1 flex ">
-          <img src={logoNoBackground} alt="Logo" className="h-50 w-auto" />
+          <img
+            src={logoNoBackground}
+            alt="Logo"
+            className="h-20 sm:h-25 md:h-25 lg:h-30 w-auto"
+          />
         </div>
 
         {/* Center: Tournament Name */}

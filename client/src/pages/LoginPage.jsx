@@ -49,7 +49,9 @@ const Login = ({ onNavigate = () => {} }) => {
         if (data?.user) {
           setEmailSent(true);
           // If the user is signed in immediately, navigate to team selection
-          await checkTournamentAndNavigate();
+          if (data.session) {
+            await checkTournamentAndNavigate();
+          }
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
