@@ -169,37 +169,24 @@ async function sportsmonkTournamentDataSync() {
           }
         }
 
-        const teamKey = `${tournament.id}-${localTeam.id}`;
-
-        if (!teamsMap.has(teamKey)) {
-          teamsMap.set(teamKey, {
-            tournament_id: tournament.id,
-            tournament_league_id: tournament.league_id,
-            tournament_stage_id: tournament.stage_id,
-            tournament_season_id: tournament.season_id,
-            sportsmonk_id: localTeam.id,
-            team_name: localTeam.name || null,
-            created_at: now,
-            updated_at: now
-          });
-        }
+        if (teamsMap.size > 0) {
+          try {
+            const teams = Array.from(teamsMap.values());
             console.log(`Upserting ${teams.length} unique teams for tournament ${tournament.name}`);
 
             const { error: teamsError } = await supabase
               .from('tournament_teams')
               .upsert(teams, {
-                onConflict: 'tournament_id,sportsmonk_id'
+                onConflict: 'tournament_league_id,tournament_season_id,sportsmonk_id'
               });
 
             if (teamsError) {
               console.error(`Error upserting tournament_teams for tournament ${tournament.id}:`, teamsError);
-              // Don't throw - log and continue with next tournament
             } else {
               console.log(`Successfully upserted ${teams.length} teams for tournament ${tournament.name}`);
             }
           } catch (teamsBatchError) {
             console.error(`Exception while batch upserting tournament_teams for tournament ${tournament.id}:`, teamsBatchError);
-            // Don't throw - log and continue with next tournament
           }
         }
       } catch (tournamentError) {
@@ -210,7 +197,7 @@ async function sportsmonkTournamentDataSync() {
         continue;
       }
     }
-
+ 
     console.log('Sportsmonk tournament data synchronization completed successfully.');
   } catch (error) {
     console.error('Fatal error in sportsmonkTournamentDataSync:', error);

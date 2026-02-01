@@ -48,7 +48,7 @@ if __name__ == "__main__":
     path = os.path.join(base_dir, 'matches_rows.csv')
 
     result = check_match_status(path)
-    output_value = "TRUE" if result else "FALSE"
+    output_value = "true" if result else "false"
     print(output_value)
 
     if "GITHUB_OUTPUT" in os.environ:

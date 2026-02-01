@@ -56,9 +56,9 @@ const TournamentRules = () => {
             </ul>
           </div>
           <div className="text-sm bg-dark-600 p-4 rounded text-gray-400">
-            <p className="mb-2"><span className="text-red-600 font-bold">Note</span> 
+            <p className="mb-2"><span className="text-red-600 font-bold">Note</span> </p>
             <p> No more than <span className="text-red-600 font-bold">1</span> Wicketkeeper can be selected </p> 
-            <span className="text-xs text-red-600 font-italic"> *applies the whole tournament*</span></p> <br />
+            <p><span className="text-xs text-red-600 font-italic"> *applies the whole tournament*</span></p> <br />
             <p> No more than <span className="text-red-600 font-bold">3</span> players can be selected from a single country. <br /> 
             <span className="text-xs text-primary-500 font-italic"> *during the group stage*</span></p>
           </div>
