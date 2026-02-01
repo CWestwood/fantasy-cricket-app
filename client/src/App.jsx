@@ -17,6 +17,7 @@ import Header from "./components/ui/header";
 import { supabase } from "./utils/supabaseClient";
 import TournamentRules from './pages/TournamentRules';
 import Footer from "./components/ui/Footer";
+import { Analytics } from "@vercel/analytics/react";
 
 const Layout = ({ children }) => (
   <div className="flex flex-col min-h-screen bg-dark-500">
@@ -264,6 +265,7 @@ function App() {
     <Router>
       <TeamProvider>
         <AppContent />
+        <Analytics />
       </TeamProvider>
     </Router>
   );

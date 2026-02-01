@@ -36,6 +36,7 @@ export default function TeamSelection() {
 
   const {
     selectedPlayers,
+    setSelectedPlayers,
     handlePlayerSelection,
     captain,
     setCaptain,
@@ -68,6 +69,10 @@ export default function TeamSelection() {
   // Load team selections from localStorage on mount
   useEffect(() => {
     if (!tournamentId) return;
+
+    // If a team is already saved in the database (teamId exists), 
+    // we rely on TeamContext to load it, not localStorage.
+    if (teamId) return;
     
     const cacheKey = `fantasy-cricket-team-${tournamentId}`;
     const cached = localStorage.getItem(cacheKey);
@@ -75,13 +80,20 @@ export default function TeamSelection() {
     if (cached) {
       try {
         const teamCache = JSON.parse(cached);
-        if (teamCache.teamName) setTeamName(teamCache.teamName);
-        if (teamCache.username) setUsername(teamCache.username);
+        // Only restore if context is empty (e.g. on refresh)
+        if (selectedPlayers.length === 0) {
+          if (teamCache.teamName) setTeamName(teamCache.teamName);
+          if (teamCache.username) setUsername(teamCache.username);
+          if (teamCache.players && Array.isArray(teamCache.players)) {
+            setSelectedPlayers(teamCache.players);
+          }
+          if (teamCache.captain) setCaptain(teamCache.captain);
+        }
       } catch (err) {
         console.error("Failed to load team cache:", err);
       }
     }
-  }, [tournamentId]);
+  }, [tournamentId, teamId]);
 
   // Load all teams upfront (independent of player pagination)
   useEffect(() => {
