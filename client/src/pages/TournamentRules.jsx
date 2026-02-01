@@ -49,7 +49,7 @@ const TournamentRules = () => {
             <ul className="list-none text-sm list-inside space-y-1 text-gray-300">
               <li>3 Batters (minimum)</li>
               <li>3 Bowlers (minimum)</li>
-              <li>1 Wicketkeeper (maximum)</li>
+              <li>1 Wicketkeeper (minimum)</li>
               <li>4 Free Choices <span className="text-xs">(batters/bowlers/allrounders)</span></li>
               <li className="font-bold"> with </li>
               <li className="text-yellow-400">1 Designated Captain <span className="text-xs">(see Bonus Multipliers)</span></li>
@@ -57,8 +57,6 @@ const TournamentRules = () => {
           </div>
           <div className="text-sm bg-dark-600 p-4 rounded text-gray-400">
             <p className="mb-2"><span className="text-red-600 font-bold">Note</span> </p>
-            <p> No more than <span className="text-red-600 font-bold">1</span> Wicketkeeper can be selected </p> 
-            <p><span className="text-xs text-red-600 font-italic"> *applies the whole tournament*</span></p> <br />
             <p> No more than <span className="text-red-600 font-bold">3</span> players can be selected from a single country. <br /> 
             <span className="text-xs text-primary-500 font-italic"> *during the group stage*</span></p>
           </div>

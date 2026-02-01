@@ -257,15 +257,15 @@ export const TeamProvider = ({ children }) => {
         isValid:
           (composition.batter || 0) >= 3 &&
           (composition.bowler || 0) >= 3 &&
-          (composition.wicketkeeper || 0) === 1,
+          (composition.wicketkeeper || 0) >= 1,
         errors: {
           Batter:
             (composition.batter || 0) < 3 ? "Need at least 3 batters" : null,
           Bowler:
             (composition.bowler || 0) < 3 ? "Need at least 3 bowlers" : null,
           Wicketkeeper:
-            (composition.wicketkeeper || 0) !== 1
-              ? "Need exactly 1 wicketkeeper"
+            (composition.wicketkeeper || 0) < 1
+              ? "Need at least 1 wicketkeeper"
               : null,
         },
       };
@@ -275,11 +275,11 @@ export const TeamProvider = ({ children }) => {
     // - No more than 1 wicketkeeper
     // - No more than total allowed players
     return {
-      isValid: (composition.wicketkeeper || 0) <= 1 && total <= 11,
+      isValid: (composition.wicketkeeper || 0) < 1 && total <= 11,
       errors: {
         Wicketkeeper:
-          (composition.wicketkeeper || 0) > 1
-            ? "Cannot have more than 1 wicketkeeper"
+          (composition.wicketkeeper || 0) < 1
+            ? "Need at least 1 wicketkeeper"
             : null,
         Total: total > 11 ? "Cannot have more than 11 players" : null,
       },
