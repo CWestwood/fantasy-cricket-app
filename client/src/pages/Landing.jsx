@@ -37,7 +37,7 @@ export default function Landing({ onNavigate }) {
           <div className="bg-card-light rounded-2xl py-4">
             <ul className="mt-0 space-y-5 text-gray-300">
               <li>Teams due: </li>
-              <li>hh:mm dd-mm-2026</li>
+              <li>23:59 06-02-2026</li>
             </ul>
             <ul className="mt-6 space-y-4 text-gray-400 text-m">
               <li> Sign up or sign in to start building your squad.</li>
