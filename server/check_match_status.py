@@ -45,7 +45,7 @@ def check_match_status(file_path):
 if __name__ == "__main__":
     # Use a path relative to the script file to ensure it works in CI/CD environments
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    path = os.path.join(base_dir, 'matches_rows.csv')
+    path = os.path.join(base_dir,'..', 'matches_rows.csv')
 
     result = check_match_status(path)
     output_value = "true" if result else "false"
