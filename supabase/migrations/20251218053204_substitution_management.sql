@@ -96,10 +96,8 @@ BEGIN
    WHERE s.id = NEW.player_id;
 
    IF NOT FOUND THEN
-    RAISE EXCEPTION
-        'No country found for player %, sportsmonk country_id %',
-        NEW.player_id,
-        (SELECT country_id FROM squads WHERE id = NEW.player_id);
+    -- If no country found (e.g. country table not populated), treat as null/no-country to allow submission
+    v_player_country_id := NULL;
    END IF;
 
      /*

@@ -127,7 +127,7 @@ export const TeamProvider = ({ children }) => {
               added_at,
               removed_at,
               is_starter,
-              players:player_id (*)
+              squads:player_id (*)
             `)
             .eq("team_id", teamData.id);
 
