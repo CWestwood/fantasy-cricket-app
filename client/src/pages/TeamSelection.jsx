@@ -691,7 +691,7 @@ useEffect(() => {
               </div>
 
               <div className="relative">
-                <div ref={teamsDropdownRef} className="relative inline-block text-left">
+                <div ref={teamsDropdownRef} className="relative inline-block text-left px-4">
                   <button
                     type="button"
                     onClick={() => setShowTeamsDropdown((s) => !s)}
