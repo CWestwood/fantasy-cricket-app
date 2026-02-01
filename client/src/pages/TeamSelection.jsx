@@ -51,51 +51,49 @@ export default function TeamSelection() {
     teamId,
   } = useTeam();
 
-  // Cache team selections to localStorage
-  useEffect(() => {
-    console.log("Cache write effect — tournamentId:", tournamentId, "players:", selectedPlayers.length);
-    if (!tournamentId) return;
-    
-    const cacheKey = `fantasy-cricket-team-${tournamentId}`;
-    const teamCache = {
-      players: selectedPlayers.map(p => ({ id: p.id, name: p.name, role: p.role, team_name: p.team_name })),
-      captain: captain ? { id: captain.id, name: captain.name } : null,
-      teamName: teamName,
-      username: username,
-    };
-    
-    localStorage.setItem(cacheKey, JSON.stringify(teamCache));
-  }, [selectedPlayers, captain, teamName, username, tournamentId]);
+  const hasInitializedRef = useRef(false);
 
-  // Load team selections from localStorage on mount
-  useEffect(() => {
-    console.log("Cache read effect — tournamentId:", tournamentId, "teamId:", teamId, "selectedPlayers:", selectedPlayers.length);
-    if (!tournamentId) return;
+// Read effect — runs first, restores from cache
+useEffect(() => {
+  if (!tournamentId || teamId) return;
 
-    // If a team is already saved in the database (teamId exists), 
-    // we rely on TeamContext to load it, not localStorage.
-    if (teamId) return;
-    
-    const cacheKey = `fantasy-cricket-team-${tournamentId}`;
-    const cached = localStorage.getItem(cacheKey);
-    
-    if (cached) {
-      try {
-        const teamCache = JSON.parse(cached);
-        // Only restore if context is empty (e.g. on refresh)
-        if (selectedPlayers.length === 0) {
-          if (teamCache.teamName) setTeamName(teamCache.teamName);
-          if (teamCache.username) setUsername(teamCache.username);
-          if (teamCache.players && Array.isArray(teamCache.players)) {
-            setSelectedPlayers(teamCache.players);
-          }
-          if (teamCache.captain) setCaptain(teamCache.captain);
-        }
-      } catch (err) {
-        console.error("Failed to load team cache:", err);
-      }
+  const cacheKey = `fantasy-cricket-team-${tournamentId}`;
+  const cached = localStorage.getItem(cacheKey);
+
+  if (cached) {
+    try {
+      const teamCache = JSON.parse(cached);
+      if (teamCache.teamName) setTeamName(teamCache.teamName);
+      if (teamCache.username) setUsername(teamCache.username);
+      if (teamCache.players?.length) setSelectedPlayers(teamCache.players);
+      if (teamCache.captain) setCaptain(teamCache.captain);
+    } catch (err) {
+      console.error("Failed to load team cache:", err);
     }
-  }, [tournamentId, teamId]);
+  }
+
+  hasInitializedRef.current = true;
+}, [tournamentId, teamId]);
+
+// Write effect — only writes after initialization is complete
+useEffect(() => {
+  if (!tournamentId) return;
+  if (!hasInitializedRef.current) return; // Skip writes until restore has run
+
+  const cacheKey = `fantasy-cricket-team-${tournamentId}`;
+  const teamCache = {
+    players: selectedPlayers.map(p => ({ id: p.id, name: p.name, role: p.role, team_name: p.team_name })),
+    captain: captain ? { id: captain.id, name: captain.name } : null,
+    teamName: teamName,
+    username: username,
+  };
+
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify(teamCache));
+  } catch (e) {
+    console.warn("Failed to write team cache:", e);
+  }
+}, [selectedPlayers, captain, teamName, username, tournamentId]);
 
   // Load all teams upfront (independent of player pagination)
   useEffect(() => {
