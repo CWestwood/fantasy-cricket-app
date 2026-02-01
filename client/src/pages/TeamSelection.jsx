@@ -313,7 +313,7 @@ useEffect(() => {
       setError(""); // Clear any previous errors
     } else {
       // Logic for ADDING a player
-      if (selectedPlayers.length >= 11) {
+      if (selectedPlayers.length > 11) {
         setError("Team can only have 11 players");
         return;
       }
