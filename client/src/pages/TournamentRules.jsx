@@ -79,9 +79,12 @@ const TournamentRules = () => {
         {/* Batting Table */}
         <div>
           <h3 className="text-lg font-semibold text-primary-500 mb-3 p-2">Batting</h3>
-          <div className="overflow-x-auto">
+          <div>
             <table className="w-full text-left text-sm">
-              
+              <colgroup>
+              <col className="w-4/6" />
+              <col className="w-2/6" /> 
+              </colgroup>
               <tbody className="divide-y divide-gray-700">
                 <tr><td className="p-3">Per Run</td><td className="p-3 text-center">1</td></tr>
                 <tr><td className="p-3">Per 6 Hit</td><td className="p-3 text-center">5</td></tr>
@@ -97,8 +100,12 @@ const TournamentRules = () => {
         {/* Bowling Table */}
         <div>
           <h3 className="text-lg font-semibold text-primary-500 mb-3">Bowling</h3>
-          <div className="overflow-x-auto">
+          <div>
             <table className="w-full text-left text-sm">
+              <colgroup>
+              <col className="w-4/6" />
+              <col className="w-2/6" /> 
+              </colgroup>
               <tbody className="divide-y divide-gray-700">
                 <tr><td className="p-3">Per Wicket</td><td className="p-3 text-center">15</td></tr>
                 <tr><td className="p-3">Per Maiden Over</td><td className="p-3 text-center">25</td></tr>
@@ -114,8 +121,12 @@ const TournamentRules = () => {
         {/* Fielding & Bonus Table */}
         <div>
           <h3 className="text-lg font-semibold text-primary-500 mb-3">Fielding & Bonus</h3>
-          <div className="overflow-x-auto">
+          <div>
             <table className="w-full text-left text-sm">
+              <colgroup>
+              <col className="w-4/6" />
+              <col className="w-2/6" /> 
+              </colgroup>
               <tbody className="divide-y divide-gray-700">
                 <tr><td className="p-3 text-sm">Per Catch</td><td className="p-3 text-center">15</td></tr>
                 <tr><td className="p-3">Per Runout involvement</td><td className="p-3 text-center">15</td></tr>
