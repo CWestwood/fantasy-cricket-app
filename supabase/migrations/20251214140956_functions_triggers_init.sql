@@ -822,9 +822,9 @@ BEGIN
     ELSIF v_bowler_count < 3 OR v_bowler_count > 11 THEN
         v_is_valid := false;
         v_error_message := 'Team must have at least 3 bowlers. Current: ' || v_bowler_count;
-    ELSIF v_wicketkeeper_count != 1 THEN
+    ELSIF v_wicketkeeper_count < 1 THEN
         v_is_valid := false;
-        v_error_message := 'Team must have exactly 1 wicketkeeper. Current: ' || v_wicketkeeper_count;
+        v_error_message := 'Team must have at least 1 wicketkeeper. Current: ' || v_wicketkeeper_count;
     ELSIF v_captain_count != 1 THEN
         v_is_valid := false;
         v_error_message := 'Team must have exactly 1 captain. Current: ' || v_captain_count;
@@ -973,7 +973,7 @@ BEGIN
         SELECT 'batter' as role, 3 as min_req, 11 as max_req
         UNION ALL SELECT 'bowler', 3, 11
         UNION ALL SELECT 'allrounder', 1, 11
-        UNION ALL SELECT 'wicketkeeper', 1, 1
+        UNION ALL SELECT 'wicketkeeper', 1, 11
     )
     SELECT 
         rr.role,

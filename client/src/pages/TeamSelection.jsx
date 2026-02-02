@@ -1,5 +1,7 @@
   // Remove unused import (useMemo, useState for isFiltering)
 import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { FiBook } from "react-icons/fi";
 import { TEAM_COLORS, TEAM_COLORS_gradient } from "../constants/colors";
 import { useTeam } from "../context/TeamContext";
 import { supabase } from "../utils/supabaseClient";
@@ -9,6 +11,7 @@ import BallIcon from "../assets/icons/ball_white.svg";
 import AllrounderIcon from "../assets/icons/allrounder_white.svg";
 import WkglovesIcon from "../assets/icons/wkgloves_white.svg";
 export default function TeamSelection() {
+  const navigate = useNavigate();
   const [availablePlayers, setAvailablePlayers] = useState([]);
   const [displayedPlayers, setDisplayedPlayers] = useState([]);
   const [filteredPlayers, setFilteredPlayers] = useState([]);
@@ -529,6 +532,15 @@ useEffect(() => {
 
         {/* Selected Team Summary */}
         <div className="bg-card-light rounded-2xl shadow-card p-6">
+          <h2 className="text-xl font-bold text-white">
+            Selected Team Summary
+          </h2>
+          <button
+            onClick={() => navigate("/tournament-rules")}
+            className="text-yellow-400 hover:text-yellow-300 transition-colors text-sm font-medium mb-4"
+          >
+           ** Click Here for the Tournament Rules **
+          </button>
           <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-4">
             <div className="flex-1">
               <h2 className="text-xl font-bold text-white">
