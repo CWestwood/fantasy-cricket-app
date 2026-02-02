@@ -207,8 +207,7 @@ useEffect(() => {
           const cached = await callRpc(rpcCacheRef.current.rpcName);
           if (!cached.error) {
             rpcResult = cached;
-            console.log(`Using cached RPC ${rpcCacheRef.current.rpcName}`);
-          } else {
+            } else {
             console.warn(`Cached RPC ${rpcCacheRef.current.rpcName} failed; falling back to table query.`);
             rpcCacheRef.current = { checked: true, rpcName: null };
           }
@@ -235,14 +234,12 @@ useEffect(() => {
       
       // Fallback: Direct query to players table
       try {
-        console.log("Attempting fallback direct query to players table...");
         const { data: fallbackData, error: fallbackError } = await supabase
           .from("squads")
           .select("id, name, team_name, role, country_name")
           .eq("tournament_id", tournamentId);
         
         if (!fallbackError && fallbackData) {
-          console.log("Fallback query succeeded, returned", fallbackData.length, "squads");
           // Keep original id for database FK
           const players = fallbackData.map((p) => ({
             ...p,

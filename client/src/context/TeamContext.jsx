@@ -135,7 +135,7 @@ export const TeamProvider = ({ children }) => {
 
           // Extract the player objects
           const loadedPlayers = teamPlayersData.map(tp => ({
-            ...tp.players,
+            ...tp.squads,
             is_captain: tp.is_captain,
             is_substituted: tp.is_substituted,
             added_at: tp.added_at,
