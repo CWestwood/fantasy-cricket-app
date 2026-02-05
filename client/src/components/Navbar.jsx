@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiMenu, FiX } from 'react-icons/fi'; // Using react-icons for menu icons
+import { useTeam } from "../context/TeamContext";
+import { supabase } from "../utils/supabaseClient";
 
 const NavLink = ({ href, children }) => (
   <a
@@ -12,6 +14,24 @@ const NavLink = ({ href, children }) => (
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { user } = useTeam();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      const checkRole = async () => {
+        const { data } = await supabase
+          .from('users')
+          .select('role_level')
+          .eq('id', user.id)
+          .single();
+        if (data?.role === 'admin') setIsAdmin(true);
+      };
+      checkRole();
+    } else {
+      setIsAdmin(false);
+    }
+  }, [user]);
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
@@ -23,6 +43,10 @@ const Navbar = () => {
     { href: '#projects', text: 'Projects' },
     { href: '#contact', text: 'Contact' },
   ];
+
+  if (isAdmin) {
+    navLinks.push({ href: '/admin/stats', text: 'Admin Stats' });
+  }
 
   return (
     <header className="bg-dark-500 shadow-card sticky top-0 z-50">

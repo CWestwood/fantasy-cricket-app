@@ -10,6 +10,7 @@ import Schedule from "./pages/Schedule";
 import TeamDetail from "./pages/TeamDetail";
 import PlayerProfile from "./pages/PlayerProfile";
 import PlayerStats from "./pages/PlayerStats";
+import AdminStats from "./pages/AdminStats";
 import { useState, useEffect } from "react";
 import { TeamProvider, useTeam } from "./context/TeamContext";
 import BottomNavbar from "./components/ui/BottomNavbar";
@@ -250,6 +251,18 @@ function AppContent() {
             session ? (
               <Layout>
                 <PlayerProfile />
+              </Layout>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/stats"
+          element={
+            session ? (
+              <Layout>
+                <AdminStats />
               </Layout>
             ) : (
               <Navigate to="/login" replace />

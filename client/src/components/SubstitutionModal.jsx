@@ -526,7 +526,7 @@ export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, ca
                       }`}
                     >
                       {player.multiplier && player.multiplier !== 1 && (
-                        <div className="absolute top-1 right-1 flex items-center justify-center bg-yellow-400 text-black rounded-full w-5 h-5 text-xs font-bold">
+                        <div className="absolute top-0 right-3 flex items-center justify-center text-gray-800 rounded-full w-5 h-5 text-xs font-bold">
                           ★{player.multiplier}
                         </div>
                       )}
