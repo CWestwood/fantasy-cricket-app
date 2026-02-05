@@ -176,6 +176,7 @@ RETURNS TABLE(
   country_id uuid,
   country_name text,
   team_name text,
+  multiplier numeric,
   picks_count int,
   selected_by_user boolean
 )
@@ -196,6 +197,7 @@ BEGIN
     c.id AS country_id,
     c.name AS country_name,
     p.team_name,
+    p.multiplier,
     COALESCE(pc.cnt, 0) AS picks_count,
     EXISTS (
       SELECT 1 FROM team_players tp2

@@ -289,8 +289,13 @@ export default function MyTeamPage() {
                       player.is_substituted 
                         ? "bg-gray-600" 
                         : `bg-gradient-to-br ${TEAM_COLORS_gradient[player.team_name] || "from-gray-700 to-gray-900"}`
-                    } rounded-lg overflow-hidden`}
+                    } rounded-lg overflow-hidden relative`}
                   >
+                    {player.multiplier && player.multiplier !== 1 && (
+                      <div className="absolute top-0 right-3 z-10 flex items-center justify-center text-gray-800 rounded-full w-5 h-5 text-xs font-bold">
+                        ★{player.multiplier}
+                      </div>
+                    )}
                     {/* 1. Changed outer 'button' to 'div' */}
                     <div
                       onClick={() => setExpandedPlayerId(expandedPlayerId === player.id ? null : player.id)}

@@ -85,7 +85,7 @@ useEffect(() => {
 
   const cacheKey = `fantasy-cricket-team-${tournamentId}`;
   const teamCache = {
-    players: selectedPlayers.map(p => ({ id: p.id, name: p.name, role: p.role, team_name: p.team_name })),
+    players: selectedPlayers.map(p => ({ id: p.id, name: p.name, role: p.role, team_name: p.team_name, multiplier: p.multiplier })),
     captain: captain ? { id: captain.id, name: captain.name } : null,
     teamName: teamName,
     username: username,
@@ -239,7 +239,7 @@ useEffect(() => {
       try {
         const { data: fallbackData, error: fallbackError } = await supabase
           .from("squads")
-          .select("id, name, team_name, role, country_name")
+          .select("id, name, team_name, role, country_name, multiplier")
           .eq("tournament_id", tournamentId);
         
         if (!fallbackError && fallbackData) {
@@ -563,6 +563,11 @@ useEffect(() => {
                         `bg-gradient-to-br ${TEAM_COLORS_gradient[player.team_name] || "from-gray-700 to-gray-900"}`
                       } bg-opacity-80 rounded-lg p-3 relative min-h-[40px] flex items-center`}
                     >
+                    {player.multiplier && player.multiplier !== 1 &&
+                    <div className="absolute top-0 right-3 z-10 flex items-center  text-gray-800  w-7 h-4 text-xs font-bold">
+                      ★{player.multiplier}
+                    </div>
+                    }
                       {/* Show captain button if no captain is selected, or if the current player IS the captain */}
                       {(!captain || captain.id === player.id) && (
                         <button
@@ -596,6 +601,7 @@ useEffect(() => {
                         X
                       </button>
                     </div>
+                    
                   ))}
                 </div>
               )}
@@ -783,8 +789,15 @@ useEffect(() => {
               const isSelected = selectedPlayers.some((p) => p.id === player.id);
               const bgClass = `bg-gradient-to-br ${TEAM_COLORS_gradient[player.team_name] || "from-gray-700 to-gray-900"}`;
               const isCaptain = captain?.id === player.id;
+              const hasMultiplier = player.multiplier && player.multiplier !== 1;
               return (
-                <div key={player.id} className="rounded-xl overflow-hidden shadow-card border border-card-default">
+                <div key={player.id} className="rounded-xl overflow-hidden shadow-card border border-card-default relative">
+                  {/* Multiplier Star */}
+                  {hasMultiplier && (
+                    <div className="absolute top-0 right-6 z-10 flex items-center  text-gray-800  w-7 h-4 text-xs font-bold">
+                      ★{player.multiplier}
+                    </div>
+                  )}
                   <div className={`p-3 ${bgClass} bg-opacity-80`}>
                     
                     <div className="flex items-center justify-between gap-2">

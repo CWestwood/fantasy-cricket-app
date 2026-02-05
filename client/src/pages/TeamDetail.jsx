@@ -118,7 +118,8 @@ export default function TeamDetail() {
             id,
             name,
             role,
-            team_name
+            team_name,
+            multiplier
           )
         `)
         .eq("team_id", teamId);
@@ -186,6 +187,7 @@ export default function TeamDetail() {
           name: tp.squads.name,
           role: tp.squads.role,
           team_name: tp.squads.team_name,
+          multiplier: tp.squads.multiplier,
         },
         scores: performanceMap[tp.player_id] || [],
       }));
@@ -310,8 +312,13 @@ export default function TeamDetail() {
                 {sortedPlayers.map((p) => (
                   <div
                     key={p.id}
-                    className="bg-dark-500 rounded-lg overflow-hidden"
+                    className="bg-dark-500 rounded-lg overflow-hidden relative"
                   >
+                    {p.players?.multiplier && p.players.multiplier !== 1 && (
+                      <div className="absolute top-1 right-1 z-10 flex items-center justify-center bg-yellow-400 text-black rounded-full w-5 h-5 text-xs font-bold">
+                        ★{p.players.multiplier}
+                      </div>
+                    )}
                     <button
                       onClick={() => setExpandedPlayer(expandedPlayer === p.id ? null : p.id)}
                       className="w-full p-3 flex items-center justify-between gap-2 hover:bg-dark-400 transition-colors"

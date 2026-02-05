@@ -517,7 +517,7 @@ export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, ca
                         canSelectReplacement && handleAddPlayer(player)
                       }
                       disabled={!canSelectReplacement}
-                      className={`w-full p-3 rounded-lg flex items-center gap-3 transition-colors ${
+                      className={`w-full p-3 rounded-lg flex items-center gap-3 transition-colors relative ${
                         getTeamColor(player.team_name)
                       } ${
                         canSelectReplacement
@@ -525,6 +525,11 @@ export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, ca
                           : "cursor-not-allowed opacity-40"
                       }`}
                     >
+                      {player.multiplier && player.multiplier !== 1 && (
+                        <div className="absolute top-1 right-1 flex items-center justify-center bg-yellow-400 text-black rounded-full w-5 h-5 text-xs font-bold">
+                          ★{player.multiplier}
+                        </div>
+                      )}
                       {getRoleIcon((player.role || "").toLowerCase()) && (
                         <img
                           src={getRoleIcon((player.role || "").toLowerCase())}
