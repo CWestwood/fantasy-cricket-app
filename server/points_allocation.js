@@ -56,7 +56,21 @@ async function allocatePoints() {
             matchFailed = true;
             break;
           }
+          
+          let pointsMultiplier = 1.0;
 
+          const { data, error } = await supabase
+            .from('squads')
+            .select('multiplier')
+            .eq('tournament_id', performance.tournament_id)
+            .eq('player_id', performance.player_id)
+            .single();
+
+          if (!error && data?.multiplier != null) {
+            pointsMultiplier = Number(data.multiplier);
+          }
+          
+          
         
 
           // Calculate derived values
@@ -138,6 +152,14 @@ async function allocatePoints() {
           totalScore += fieldingScore;
           totalScore += bonusScore;
           
+          // Include Multiplier for country/team
+          
+          battingScore * pointsMultiplier;
+          bowlingScore * pointsMultiplier;
+          fieldingScore * pointsMultiplier;
+          bonusScore * pointsMultiplier;
+          totalScore * pointsMultiplier;
+
           const pointsData = {
             id: uuidv4(),
             match_id: performance.match_id, 

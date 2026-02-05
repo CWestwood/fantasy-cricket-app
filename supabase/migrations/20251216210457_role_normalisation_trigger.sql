@@ -42,6 +42,34 @@ BEFORE INSERT OR UPDATE ON squads
 FOR EACH ROW
 EXECUTE FUNCTION normalize_player_role();
 
+CREATE OR REPLACE FUNCTION set_player_team_multiplier()
+RETURNS trigger
+language plpgsql
+as $$
+declare
+  v_multiplier numeric;
+begin
+  -- Fetch multiplier from tournament_teams
+  select multiplier
+  into v_multiplier
+  from public.tournament_teams
+  where sportsmonk_id = new.team_id;
+
+  -- Set it on the squads row
+  new.multiplier := v_multiplier;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_set_squad_team_multiplier on public.squads;
+
+create trigger trg_set_squad_team_multiplier
+before insert or update on public.squads
+for each row
+execute function public.set_squad_team_multiplier();
+
+
 CREATE OR REPLACE FUNCTION set_squad_country_name()
 RETURNS trigger
 LANGUAGE plpgsql
