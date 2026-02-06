@@ -315,7 +315,7 @@ export default function TeamDetail() {
                     className="bg-dark-500 rounded-lg overflow-hidden relative"
                   >
                     {p.players?.multiplier && p.players.multiplier !== 1 && (
-                      <div className="absolute top-1 right-1 z-10 flex items-center justify-center bg-yellow-400 text-black rounded-full w-5 h-5 text-xs font-bold">
+                      <div className="absolute top-0 right-3 z-10 flex items-center justify-center  text-white rounded-full w-5 h-5 text-xs font-bold">
                         ★{p.players.multiplier}
                       </div>
                     )}
