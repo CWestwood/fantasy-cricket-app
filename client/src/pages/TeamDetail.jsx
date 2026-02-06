@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../utils/supabaseClient";
 import { useTeam } from "../context/TeamContext";
+import { TEAM_HEX_COLORS } from "../constants/colors";
 import BatIcon from "../assets/icons/bat_white.svg";
 import BallIcon from "../assets/icons/ball_white.svg";
 import AllrounderIcon from "../assets/icons/allrounder_white.svg";
@@ -315,7 +316,7 @@ export default function TeamDetail() {
                     className="bg-dark-500 rounded-lg overflow-hidden relative"
                   >
                     {p.players?.multiplier && p.players.multiplier !== 1 && (
-                      <div className="absolute top-0 right-3 z-10 flex items-center justify-center  text-white rounded-full w-5 h-5 text-xs font-bold">
+                      <div className="absolute top-0 right-5 z-10 flex items-center justify-center  text-gray-300 rounded-full w-5 h-5 text-xs font-normal">
                         ★{p.players.multiplier}
                       </div>
                     )}
@@ -339,8 +340,9 @@ export default function TeamDetail() {
                             type="button"
                             onClick={(e) => goToPlayerProfile(e, p.players?.id)}
                             className={`text-sm font-semibold truncate text-left focus:outline-none ${
-                              p.is_captain ? "text-yellow-400" : "text-white"
+                              p.is_captain ? "text-yellow-400" : (!TEAM_HEX_COLORS[p.players?.team_name] ? "text-white" : "")
                             }`}
+                            style={!p.is_captain && TEAM_HEX_COLORS[p.players?.team_name] ? { color: TEAM_HEX_COLORS[p.players?.team_name] } : {}}
                           >
                             {p.players?.name || "Unknown"}
                             {p.is_captain && " (C)"}
@@ -431,7 +433,8 @@ export default function TeamDetail() {
                               <button
                                 type="button"
                                 onClick={(e) => goToPlayerProfile(e, p.players?.id)}
-                                className={`focus:outline-none font-semibold ${p.is_captain ? "text-yellow-400" : "text-white"}`}
+                                className={`focus:outline-none font-semibold ${p.is_captain ? "text-yellow-400" : (!TEAM_HEX_COLORS[p.players?.team_name] ? "text-white" : "")}`}
+                                style={!p.is_captain && TEAM_HEX_COLORS[p.players?.team_name] ? { color: TEAM_HEX_COLORS[p.players?.team_name] } : {}}
                               >
                                 {p.players?.name || "Unknown"}
                                 {p.is_captain && " (C)"}
