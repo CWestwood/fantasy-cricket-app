@@ -441,14 +441,11 @@ async function syncLiveMatchData() {
                 matchData = {
                     ...existingData,
                     fielding_catches: fieldingType === 'catch' 
-                    ? (existingData.fielding_catches || 0) + 1 
-                    : existingData.fielding_catches,
+                    ? 1 : 0,
                     fielding_runouts: fieldingType === 'runout' 
-                    ? (existingData.fielding_runouts || 0) + 1 
-                    : existingData.fielding_runouts,
-                    fielding_stumpings: fieldingType === 'stumping' 
-                    ? (existingData.fielding_stumpings || 0) + 1 
-                    : existingData.fielding_stumpings,
+                    ?  1 : 0,
+                    fielding_stumpings: fieldingType === 'stumping'
+                    ? 1: 0,
                     match_status: matchStatus,
                     last_updated: new Date().toISOString()
                 };
