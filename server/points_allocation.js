@@ -62,14 +62,15 @@ async function allocatePoints() {
           const { data, error } = await supabase
             .from('squads')
             .select('multiplier')
-            .eq('player_id', performance.player_id)
+            .eq('tournament_id', performance.tournament_id)
+            .eq('id', performance.player_id)
             .single();
 
           if (!error && data?.multiplier != null) {
             pointsMultiplier = Number(data.multiplier);
           }
 
-          console.log('Points multiplier for player', performance.player_name, ':', pointsMultiplier);
+          
           
           
         
