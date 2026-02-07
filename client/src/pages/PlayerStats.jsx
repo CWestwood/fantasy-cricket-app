@@ -112,10 +112,28 @@ const PlayerStats = () => {
           throw playersRes.error;
         }
 
+        // Fetch pick counts separately since the new view doesn't include team/user data
+        const { data: teamsData } = await supabase
+          .from("teams")
+          .select("id")
+          .eq("tournament_id", tournamentId);
+        
+        const teamIds = (teamsData || []).map(t => t.id);
+        const pickCounts = {};
+        if (teamIds.length > 0) {
+          const { data: tpData } = await supabase
+            .from("team_players")
+            .select("player_id")
+            .in("team_id", teamIds);
+          tpData?.forEach(tp => {
+            pickCounts[tp.player_id] = (pickCounts[tp.player_id] || 0) + 1;
+          });
+        }
+
         const perfRes = await supabase
-          .from("player_performance_summary")
+          .from("tournament_player_performance")
           .select(
-            "player_id, team_id, match_id, match_name, match_date, match_status, batting, bowling, fielding, bonus, fantasy_total"
+            "player_id, match_id, match_name, match_date, match_status, batting, bowling, fielding, bonus, fantasy_total"
           )
           .eq("tournament_id", tournamentId);
 
@@ -134,7 +152,6 @@ const PlayerStats = () => {
               matches: new Set(),
               matchIds: new Set(),
               matchLog: [],
-              teams: new Set(),
               batting: 0,
               bowling: 0,
               fielding: 0,
@@ -169,8 +186,6 @@ const PlayerStats = () => {
               stats.total += Number(row.fantasy_total) || 0;
             }
           }
-
-          if (row.team_id) stats.teams.add(row.team_id);
         });
 
         const rows = (playersRes.data || []).map((player) => {
@@ -178,7 +193,6 @@ const PlayerStats = () => {
             matches: new Set(),
             matchLog: [],
             matchIds: new Set(),
-            teams: new Set(),
             batting: 0,
             bowling: 0,
             fielding: 0,
@@ -204,7 +218,7 @@ const PlayerStats = () => {
             fielding: stats.fielding,
             bonus: stats.bonus,
             totalScore: stats.total,
-            teamsPicked: stats.teams.size,
+            teamsPicked: pickCounts[player.id] || 0,
             matchLog: orderedMatchLog,
           };
         });

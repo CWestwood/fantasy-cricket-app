@@ -320,9 +320,9 @@ export default function TeamDetail() {
                         ★{p.players.multiplier}
                       </div>
                     )}
-                    <button
+                    <div
                       onClick={() => setExpandedPlayer(expandedPlayer === p.id ? null : p.id)}
-                      className="w-full p-3 flex items-center justify-between gap-2 hover:bg-dark-400 transition-colors"
+                      className="w-full p-3 flex items-center justify-between gap-2 hover:bg-dark-400 transition-colors cursor-pointer"
                     >
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <div className="flex-shrink-0">
@@ -364,7 +364,7 @@ export default function TeamDetail() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
                         </svg>
                       </div>
-                    </button>
+                    </div>
 
                     {/* Expanded Score Breakdown */}
                     {expandedPlayer === p.id && p.scores && p.scores.length > 0 && (

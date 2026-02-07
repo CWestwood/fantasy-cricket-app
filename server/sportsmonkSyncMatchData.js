@@ -664,6 +664,11 @@ async function syncMatchData() {
             .from('live_match_data')
             .delete()
             .eq('match_id', match.id);
+          
+          const {error: deleteError3 } = await supabase
+            .from('live_userteam_points')
+            .delete()
+            .eq('match_id', match.id);
 
           const { error: potmUpsertError } = await supabase
             .from('bonus_potm_table')
@@ -699,6 +704,12 @@ async function syncMatchData() {
             console.error('Error deleting live match data:', deleteError2);
           } else {
             console.log('Deleted live match data');
+          }
+
+          if (deleteError3) {
+            console.error('Error deleting live match data:', deleteError3);
+          } else {
+            console.log('Deleted live user team points');
           }
 
           if (potmUpsertError) {
