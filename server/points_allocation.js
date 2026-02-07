@@ -69,6 +69,8 @@ async function allocatePoints() {
           if (!error && data?.multiplier != null) {
             pointsMultiplier = Number(data.multiplier);
           }
+
+          console.log('Points multiplier for player', performance.player_name, ':', pointsMultiplier);
           
           
         
