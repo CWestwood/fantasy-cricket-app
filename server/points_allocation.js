@@ -154,11 +154,11 @@ async function allocatePoints() {
           
           // Include Multiplier for country/team
           
-          battingScore * pointsMultiplier;
-          bowlingScore * pointsMultiplier;
-          fieldingScore * pointsMultiplier;
-          bonusScore * pointsMultiplier;
-          totalScore * pointsMultiplier;
+          totalScore = totalScore * pointsMultiplier;
+          battingScore = battingScore * pointsMultiplier;
+          bowlingScore = bowlingScore * pointsMultiplier;
+          fieldingScore = fieldingScore * pointsMultiplier;
+          bonusScore = bonusScore * pointsMultiplier;
 
           const pointsData = {
             id: uuidv4(),

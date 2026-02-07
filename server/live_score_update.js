@@ -65,6 +65,19 @@ async function liveAllocatePoints() {
 
       console.log('✅ Points config found for tournament');
 
+      let pointsMultiplier = 1.0;
+
+          const { data, error } = await supabase
+            .from('squads')
+            .select('multiplier')
+            .eq('tournament_id', performance.tournament_id)
+            .eq('player_id', performance.player_id)
+            .single();
+
+          if (!error && data?.multiplier != null) {
+            pointsMultiplier = Number(data.multiplier);
+          }
+
       // Calculate derived values
       const runs = performance.batting_runs || 0;
       const ballsFaced = performance.batting_balls_faced || 0;
@@ -137,6 +150,12 @@ async function liveAllocatePoints() {
       totalScore += bowlingScore;
       totalScore += fieldingScore;
       totalScore += bonusScore;
+
+      totalScore = totalScore * pointsMultiplier;
+      battingScore = battingScore * pointsMultiplier;
+      bowlingScore = bowlingScore * pointsMultiplier;
+      fieldingScore = fieldingScore * pointsMultiplier;
+      bonusScore = bonusScore * pointsMultiplier;
       
       const pointsData = {
         id: uuidv4(),
