@@ -3,7 +3,7 @@ name: Live Match Sync and Points Allocation
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/30 * * * *' # Runs every 30 minutes
+    - cron: '*/5 * * * *' # Runs every 30 minutes
 
 jobs:
   sync-and-allocate-points:
