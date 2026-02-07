@@ -87,7 +87,7 @@ const TournamentRules = () => {
                 <tr><td className="p-3">Per Run</td><td className="p-3 text-center">1</td></tr>
                 <tr><td className="p-3">Per 6 Hit</td><td className="p-3 text-center">5</td></tr>
                 <tr><td className="p-3">Score 30+ / 50+ / 100+</td><td className="p-3 text-center">10 / 25 / 50</td></tr>
-                <tr><td className="p-3 text-red-600">Duck (Out for 0 runs)</td><td className="p-3 text-center text-red-600">-10</td></tr>
+                <tr><td className="p-3 text-red-600">Duck (Out for 0 runs)</td><td className="p-3 text-center text-red-600">-25</td></tr>
                 <tr><td className="p-3">SR &gt; 200 (10+ balls)</td><td className="p-3 text-center">35</td></tr>
                 <tr><td className="p-3 text-red-600">SR &lt; 100 (15+ balls)</td><td className="p-3 text-center text-red-600">-10</td></tr>
               </tbody>
