@@ -19,10 +19,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check if we're in a match window
-        id: check-match
-        run: python3 check_match_status.py
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -32,9 +28,7 @@ jobs:
         run: npm ci
 
       - name: Run sportsmonkLiveMatchData.js
-        if: steps.check-match.outputs.output_value == 'true'
         run: node sportsmonkLiveMatchData.js
 
       - name: Run live_score_update.js
-        if: steps.check-match.outputs.output_value == 'true'
         run: node live_score_update.js
