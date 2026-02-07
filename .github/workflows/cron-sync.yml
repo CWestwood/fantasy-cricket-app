@@ -27,10 +27,9 @@ jobs:
         run: npm ci
 
       - name: Run sportsmonkLiveMatchData.js
-        if: steps.check-match.outputs.output_value == 'true'
         run: node sportsmonkLiveMatchData.js
 
       - name: Run live_score_update.js
-        if: steps.check-match.outputs.output_value == 'true'
         run: node live_score_update.js
+
 
