@@ -3,7 +3,7 @@ name: Live Match Sync and Points Allocation
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/5 * * * *' # Runs every 30 minutes
+    - cron: '*/10 * * * *' # Runs every 30 minutes
 
 jobs:
   sync-and-allocate-points:
@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run sportsmonkDailyMatchesDataSync.js
+        run: node sportsmonkDailyMatchesDataSync.js
+       
       - name: Run sportsmonkLiveMatchData.js
         run: node sportsmonkLiveMatchData.js
 
