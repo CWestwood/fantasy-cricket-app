@@ -263,28 +263,28 @@ export default function Leaderboard() {
                             <div className="text-xs text-gray-400">Batting</div>
                             <div className="font-bold text-primary-500">
                               {formatNumber(r.display_batting)}
-                              {isLive && r.live_delta_batting > 0 && <span className="ml-1 text-xs text-green-400">+{formatNumber(r.live_delta_batting)}</span>}
+                              {isLive && r.live_delta_batting !== 0 && <span className={`ml-1 text-xs ${r.live_delta_batting < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_batting > 0 ? "+" : ""}{formatNumber(r.live_delta_batting)}</span>}
                             </div>
                           </div>
                           <div className="bg-dark-600 p-2 rounded">
                             <div className="text-xs text-gray-400">Bowling</div>
                             <div className="font-bold text-primary-500">
                               {formatNumber(r.display_bowling)}
-                              {isLive && r.live_delta_bowling > 0 && <span className="ml-1 text-xs text-green-400">+{formatNumber(r.live_delta_bowling)}</span>}
+                              {isLive && r.live_delta_bowling !== 0 && <span className={`ml-1 text-xs ${r.live_delta_bowling < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_bowling > 0 ? "+" : ""}{formatNumber(r.live_delta_bowling)}</span>}
                             </div>
                           </div>
                           <div className="bg-dark-600 p-2 rounded">
                             <div className="text-xs text-gray-400">Fielding</div>
                             <div className="font-bold text-primary-500">
                               {formatNumber(r.display_fielding)}
-                              {isLive && r.live_delta_fielding > 0 && <span className="ml-1 text-xs text-green-400">+{formatNumber(r.live_delta_fielding)}</span>}
+                              {isLive && r.live_delta_fielding !== 0 && <span className={`ml-1 text-xs ${r.live_delta_fielding < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_fielding > 0 ? "+" : ""}{formatNumber(r.live_delta_fielding)}</span>}
                             </div>
                           </div>
                           <div className="bg-dark-600 p-2 rounded">
                             <div className="text-xs text-gray-400">Bonus</div>
                             <div className="font-bold text-primary-500">
                               {formatNumber(r.display_bonus)}
-                              {isLive && r.live_delta_bonus > 0 && <span className="ml-1 text-xs text-green-400">+{formatNumber(r.live_delta_bonus)}</span>}
+                              {isLive && r.live_delta_bonus !== 0 && <span className={`ml-1 text-xs ${r.live_delta_bonus < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_bonus > 0 ? "+" : ""}{formatNumber(r.live_delta_bonus)}</span>}
                             </div>
                           </div>
                           {Math.abs(breakdownSum - r.display_total) > 0.01 && (
@@ -322,10 +322,10 @@ export default function Leaderboard() {
                           <td className="py-3 px-4 text-gray-300">{r.username}</td>
                           <td className="py-3 px-4 text-right font-bold text-primary-500">
                             {formatNumber(r.display_total)}
-                            {isLive && r.live_delta_total >= 0 && <span className="ml-1 text-xs text-green-400">+{formatNumber(r.live_delta_total)}</span>}
+                            {isLive && <span className={`ml-1 text-xs ${r.live_delta_total < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_total >= 0 ? "+" : ""}{formatNumber(r.live_delta_total)}</span>}
                           </td>
                           <td className="py-3 px-4 text-sm text-gray-300">
-                            {formatNumber(r.display_batting)}{isLive && r.live_delta_batting > 0 && <span className="text-green-400 text-xs">+{formatNumber(r.live_delta_batting)}</span>} / {formatNumber(r.display_bowling)}{isLive && r.live_delta_bowling > 0 && <span className="text-green-400 text-xs">+{formatNumber(r.live_delta_bowling)}</span>} / {formatNumber(r.display_fielding)}{isLive && r.live_delta_fielding > 0 && <span className="text-green-400 text-xs">+{formatNumber(r.live_delta_fielding)}</span>} / {formatNumber(r.display_bonus)}{isLive && r.live_delta_bonus > 0 && <span className="text-green-400 text-xs">+{formatNumber(r.live_delta_bonus)}</span>}
+                            {formatNumber(r.display_batting)}{isLive && r.live_delta_batting !== 0 && <span className={`text-xs ${r.live_delta_batting < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_batting > 0 ? "+" : ""}{formatNumber(r.live_delta_batting)}</span>} / {formatNumber(r.display_bowling)}{isLive && r.live_delta_bowling !== 0 && <span className={`text-xs ${r.live_delta_bowling < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_bowling > 0 ? "+" : ""}{formatNumber(r.live_delta_bowling)}</span>} / {formatNumber(r.display_fielding)}{isLive && r.live_delta_fielding !== 0 && <span className={`text-xs ${r.live_delta_fielding < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_fielding > 0 ? "+" : ""}{formatNumber(r.live_delta_fielding)}</span>} / {formatNumber(r.display_bonus)}{isLive && r.live_delta_bonus !== 0 && <span className={`text-xs ${r.live_delta_bonus < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_bonus > 0 ? "+" : ""}{formatNumber(r.live_delta_bonus)}</span>}
                           </td>
                         </tr>
 

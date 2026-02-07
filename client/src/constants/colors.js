@@ -72,7 +72,7 @@ export const TEAM_HEX_COLORS = {
   "England": "#FB7185",
   "South Africa": "#65A30D",
   "New Zealand": "#64748B",
-  "West Indies": "#4C0519",
+  "West Indies": "#ad2149",
   "Sri Lanka": "#2563EB",
   Bangladesh: "#BBF7D0",
   Afghanistan: "#3B82F6",
