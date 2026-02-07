@@ -10,7 +10,7 @@ export default function Leaderboard() {
   const [error, setError] = useState("");
   const [rows, setRows] = useState([]);
   const [expandedTeam, setExpandedTeam] = useState(null);
-  const [isLive, setIsLive] = useState(false);
+  const [isLive, setIsLive] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [liveScores, setLiveScores] = useState({});
 
@@ -228,8 +228,8 @@ export default function Leaderboard() {
                           <div className="text-right">
                             <div className="font-bold text-primary-500">
                               {formatNumber(r.display_total)}
-                              {isLive && r.live_delta_total !== 0 && <span className={`ml-1 text-xs ${r.live_delta_total < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_total < 0 ? "-" : "+"}{formatNumber(r.live_delta_total)}</span>}
-                              )}
+                              {isLive && r.live_delta_total !== 0 && <span className={`ml-1 text-xs ${r.live_delta_total < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_total < 0 ? "" : "+"}{formatNumber(r.live_delta_total)}</span>}
+                              {isLive && r.live_delta_total === 0 && <span className={`ml-1 text-xs text-gray-400`}>+0</span>}                              
                             </div>
                           </div>
                           <button
@@ -237,10 +237,10 @@ export default function Leaderboard() {
                               e.stopPropagation();
                               setExpandedTeam(expandedTeam === r.team_id ? null : r.team_id);
                             }}
-                            className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors"
+                            className="flex items-center justify-center w-3 h-3 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors"
                           >
                             <svg
-                              className={`w-4 h-4 text-gray-300 transition-transform ${
+                              className={`w-2 h-2 text-gray-300 transition-transform ${
                                 expandedTeam === r.team_id ? "rotate-180" : ""
                               }`}
                               fill="none"
@@ -262,28 +262,28 @@ export default function Leaderboard() {
                             <div className="text-xs text-gray-400">Batting</div>
                             <div className="font-bold text-primary-500">
                               {formatNumber(r.display_batting)}
-                              {isLive && r.live_delta_batting !== 0 && <span className={`ml-1 text-xs ${r.live_delta_batting < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_batting < 0 ? "-" : "+"}{formatNumber(r.live_delta_batting)}</span>}
+                              {isLive && r.live_delta_batting !== 0 && <span className={`ml-1 text-xs ${r.live_delta_batting < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_batting < 0 ? "" : "+"}{formatNumber(r.live_delta_batting)}</span>}
                             </div>
                           </div>
                           <div className="bg-dark-600 p-2 rounded">
                             <div className="text-xs text-gray-400">Bowling</div>
                             <div className="font-bold text-primary-500">
                               {formatNumber(r.display_bowling)}
-                              {isLive && r.live_delta_bowling !== 0 && <span className={`ml-1 text-xs ${r.live_delta_bowling < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_bowling < 0 ? "-" : "+"}{formatNumber(r.live_delta_bowling)}</span>}
+                              {isLive && r.live_delta_bowling !== 0 && <span className={`ml-1 text-xs ${r.live_delta_bowling < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_bowling < 0 ? "" : "+"}{formatNumber(r.live_delta_bowling)}</span>}
                             </div>
                           </div>
                           <div className="bg-dark-600 p-2 rounded">
                             <div className="text-xs text-gray-400">Fielding</div>
                             <div className="font-bold text-primary-500">
                               {formatNumber(r.display_fielding)}
-                              {isLive && r.live_delta_fielding !== 0 && <span className={`ml-1 text-xs ${r.live_delta_fielding < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_fielding < 0 ? "-" : "+"}{formatNumber(r.live_delta_fielding)}</span>}
+                              {isLive && r.live_delta_fielding !== 0 && <span className={`ml-1 text-xs ${r.live_delta_fielding < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_fielding < 0 ? "" : "+"}{formatNumber(r.live_delta_fielding)}</span>}
                             </div>
                           </div>
                           <div className="bg-dark-600 p-2 rounded">
                             <div className="text-xs text-gray-400">Bonus</div>
                             <div className="font-bold text-primary-500">
                               {formatNumber(r.display_bonus)}
-                              {isLive && r.live_delta_bonus !== 0 && <span className={`ml-1 text-xs ${r.live_delta_bonus < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_bonus < 0 ? "-" : "+"}{formatNumber(r.live_delta_bonus)}</span>}
+                              {isLive && r.live_delta_bonus !== 0 && <span className={`ml-1 text-xs ${r.live_delta_bonus < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_bonus < 0 ? "" : "+"}{formatNumber(r.live_delta_bonus)}</span>}
                             </div>
                           </div>
                           {Math.abs(breakdownSum - r.display_total) > 0.01 && (
