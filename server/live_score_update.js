@@ -100,10 +100,10 @@ async function liveAllocatePoints() {
       const is50Plus = runs >= 50;
       const is100Plus = runs >= 100;
       const is200Plus = runs >= 200;
-      const ishighRR = strikeRate >= 150 && ballsFaced >= 10;
-      const islowRR = strikeRate <= 90 && ballsFaced >= 10;
-      const ishighER = economyRate >= 9 && overs >= 2;
-      const islowER = economyRate <= 7 && overs >= 2;
+      const ishighRR = strikeRate >= 200 && ballsFaced >= 10;
+      const islowRR = strikeRate <= 100 && ballsFaced >= 10;
+      const ishighER = economyRate >= 10 && overs >= 1;
+      const islowER = economyRate <= 8 && overs >= 2;
       const is3Wickets = wickets >= 3;
       const is5Wickets = wickets >= 5;
     
