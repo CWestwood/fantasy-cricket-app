@@ -71,7 +71,7 @@ async function liveAllocatePoints() {
             .from('squads')
             .select('multiplier')
             .eq('tournament_id', performance.tournament_id)
-            .eq('player_id', performance.player_id)
+            .eq('id', performance.player_id)
             .single();
 
           if (!error && data?.multiplier != null) {
