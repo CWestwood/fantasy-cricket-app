@@ -24,13 +24,8 @@ export default function TeamDetail() {
   const [expandedPlayer, setExpandedPlayer] = useState(null);
   const [username, setUsername] = useState(null);
   const [leaderboardPosition, setLeaderboardPosition] = useState(null);
-  const [teamTotals, setTeamTotals] = useState({
-    batting: 0,
-    bowling: 0,
-    fielding: 0,
-    bonus: 0,
-    total: 0,
-  });
+  const [isLive, setIsLive] = useState(true);
+  const [livePlayerScores, setLivePlayerScores] = useState({});
 
   // Map roles to their icons
   const roleIconMap = {
@@ -193,28 +188,6 @@ export default function TeamDetail() {
         scores: performanceMap[tp.player_id] || [],
       }));
 
-      // Calculate team totals from performance data
-      let battingTotal = 0;
-      let bowlingTotal = 0;
-      let fieldingTotal = 0;
-      let bonusTotal = 0;
-      
-      if (performanceRes.data) {
-        performanceRes.data.forEach((row) => {
-          battingTotal += Number(row.batting) || 0;
-          bowlingTotal += Number(row.bowling) || 0;
-          fieldingTotal += Number(row.fielding) || 0;
-          bonusTotal += Number(row.bonus) || 0;
-        });
-      }
-
-      setTeamTotals({
-        batting: battingTotal,
-        bowling: bowlingTotal,
-        fielding: fieldingTotal,
-        bonus: bonusTotal,
-        total: battingTotal + bowlingTotal + fieldingTotal + bonusTotal,
-      });
 
       setPlayers(enrichedPlayers);
     } catch (e) {
@@ -227,6 +200,50 @@ export default function TeamDetail() {
     }
   }
 
+  // Fetch live scores
+  useEffect(() => {
+    if (!players.length) return;
+
+    const fetchLiveScores = async () => {
+      const playerIds = players.map((p) => p.player_id);
+      const { data, error } = await supabase
+        .from("live_scoring")
+        .select("player_id, batting, bowling, fielding, bonus, total")
+        .in("player_id", playerIds);
+
+      if (error) {
+        console.error("Error fetching live scores:", error);
+        return;
+      }
+
+      const map = {};
+      if (data) {
+        data.forEach((row) => {
+          if (!map[row.player_id]) map[row.player_id] = { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 };
+          map[row.player_id].batting += Number(row.batting) || 0;
+          map[row.player_id].bowling += Number(row.bowling) || 0;
+          map[row.player_id].fielding += Number(row.fielding) || 0;
+          map[row.player_id].bonus += Number(row.bonus) || 0;
+          map[row.player_id].total += Number(row.total) || 0;
+        });
+      }
+      setLivePlayerScores(map);
+    };
+
+    fetchLiveScores();
+
+    const channel = supabase
+      .channel("team_detail_live_scores")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "live_scoring" },
+        () => fetchLiveScores()
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [players]);
+
   const formatNumber = (v) => {
     if (v === null || v === undefined) return "0";
     const n = Number(v);
@@ -234,10 +251,46 @@ export default function TeamDetail() {
     return n % 1 === 0 ? String(n) : n.toFixed(1);
   };
 
-  const playerTotalScore = (scores) => {
-    if (!scores || scores.length === 0) return 0;
-    return scores.reduce((sum, s) => sum + (Number(s.total_points) || 0), 0);
+  const getPlayerDisplayScore = (player) => {
+    const baseTotal = (player.scores || []).reduce((sum, s) => sum + (Number(s.total_points) || 0), 0);
+    const baseBatting = (player.scores || []).reduce((sum, s) => sum + (Number(s.batting_points) || 0), 0);
+    const baseBowling = (player.scores || []).reduce((sum, s) => sum + (Number(s.bowling_points) || 0), 0);
+    const baseFielding = (player.scores || []).reduce((sum, s) => sum + (Number(s.fielding_points) || 0), 0);
+    const baseBonus = (player.scores || []).reduce((sum, s) => sum + (Number(s.bonus_points) || 0), 0);
+
+    const live = livePlayerScores[player.player_id] || { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 };
+
+    if (!isLive) return { 
+      total: baseTotal, batting: baseBatting, bowling: baseBowling, fielding: baseFielding, bonus: baseBonus,
+      delta: 0, deltaBatting: 0, deltaBowling: 0, deltaFielding: 0, deltaBonus: 0 
+    };
+
+    return {
+      total: baseTotal + live.total,
+      batting: baseBatting + live.batting,
+      bowling: baseBowling + live.bowling,
+      fielding: baseFielding + live.fielding,
+      bonus: baseBonus + live.bonus,
+      delta: live.total,
+      deltaBatting: live.batting,
+      deltaBowling: live.bowling,
+      deltaFielding: live.fielding,
+      deltaBonus: live.bonus
+    };
   };
+
+  // Calculate team totals dynamically
+  const teamTotals = players.reduce((acc, p) => {
+    const scores = getPlayerDisplayScore(p);
+    acc.total += scores.total;
+    acc.batting += scores.batting;
+    acc.bowling += scores.bowling;
+    acc.fielding += scores.fielding;
+    acc.bonus += scores.bonus;
+    acc.delta += scores.delta;
+    return acc;
+  }, { total: 0, batting: 0, bowling: 0, fielding: 0, bonus: 0, delta: 0 });
+
 
   // Sort players with captain first
   const sortedPlayers = [...players].sort((a, b) => {
@@ -271,21 +324,41 @@ export default function TeamDetail() {
             </button>
           </div>
           <div className="space-y-4">
-            {/* Team Info */}
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-primary-500">{team?.team_name || "Team"}</h1>
-              <p className="text-sm text-gray-300 mt-1">
-                Manager: {username || "Unknown"}
-              </p>
-              <p className="text-sm text-gray-400 mt-1">
-                {players.length} {players.length === 1 ? "player" : "players"}
-              </p>
+            {/* Team Info & Toggle */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-primary-500">{team?.team_name || "Team"}</h1>
+                <p className="text-sm text-gray-300 mt-1">
+                  Manager: {username || "Unknown"}
+                </p>
+                <p className="text-sm text-gray-400 mt-1">
+                  {players.length} {players.length === 1 ? "player" : "players"}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-300">Live</span>
+                  <button
+                    onClick={() => setIsLive(!isLive)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      isLive ? "bg-primary-500" : "bg-gray-600"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        isLive ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
             </div>
             {/* Team Totals and Breakdown */}
             <div className="grid grid-cols-1 sm:grid-cols-1 gap-2 sm:gap-4">
               <div className="bg-dark-500 rounded-lg p-3">
                 <div className="text-2xl sm:text-3xl font-bold text-primary-500">
                   {formatNumber(teamTotals.total)}
+                  {isLive && teamTotals.delta !== 0 && <span className={`ml-2 text-sm ${teamTotals.delta < 0 ? "text-red-400" : "text-green-400"}`}>{teamTotals.delta > 0 ? "+" : ""}{formatNumber(teamTotals.delta)}</span>}
                 </div>
                 <div className="text-lg font-bold text-primary-500">
                   {formatNumber(teamTotals.batting)}  - {formatNumber(teamTotals.bowling)}  - {formatNumber(teamTotals.fielding)}  -  {formatNumber(teamTotals.bonus)}
@@ -311,6 +384,10 @@ export default function TeamDetail() {
               {/* Mobile card list */}
               <div className="sm:hidden space-y-2">
                 {sortedPlayers.map((p) => (
+                  <React.Fragment key={p.id}>
+                  {(() => {
+                    const scores = getPlayerDisplayScore(p);
+                    return (
                   <div
                     key={p.id}
                     className="bg-dark-500 rounded-lg overflow-hidden relative"
@@ -351,7 +428,8 @@ export default function TeamDetail() {
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <p className="text-sm font-bold text-primary-500">
-                          {formatNumber(playerTotalScore(p.scores))}
+                          {formatNumber(scores.total)}
+                          {isLive && scores.delta !== 0 && <span className={`ml-1 text-xs ${scores.delta < 0 ? "text-red-400" : "text-green-400"}`}>{scores.delta > 0 ? "+" : ""}{scores.delta}</span>}
                         </p>
                         <svg
                           className={`w-4 h-4 text-gray-400 transition-transform ${
@@ -367,37 +445,44 @@ export default function TeamDetail() {
                     </div>
 
                     {/* Expanded Score Breakdown */}
-                    {expandedPlayer === p.id && p.scores && p.scores.length > 0 && (
+                    {expandedPlayer === p.id && (
                       <div className="border-t border-gray-600 bg-dark-600 p-3 space-y-2">
                         <div className="grid grid-cols-2 gap-2">
                           <div className="bg-dark-500 rounded p-2">
                             <p className="text-xs text-gray-400 mb-1">Batting</p>
                             <p className="text-lg font-bold text-primary-500">
-                              {formatNumber(p.scores.reduce((sum, s) => sum + (Number(s.batting_points) || 0), 0))}
+                              {formatNumber(scores.batting)}
+                              {isLive && scores.deltaBatting !== 0 && <span className={`ml-1 text-xs ${scores.deltaBatting < 0 ? "text-red-400" : "text-green-400"}`}>{scores.deltaBatting > 0 ? "+" : ""}{scores.deltaBatting}</span>}
                             </p>
                           </div>
                           <div className="bg-dark-500 rounded p-2">
                             <p className="text-xs text-gray-400 mb-1">Bowling</p>
                             <p className="text-lg font-bold text-primary-500">
-                              {formatNumber(p.scores.reduce((sum, s) => sum + (Number(s.bowling_points) || 0), 0))}
+                              {formatNumber(scores.bowling)}
+                              {isLive && scores.deltaBowling !== 0 && <span className={`ml-1 text-xs ${scores.deltaBowling < 0 ? "text-red-400" : "text-green-400"}`}>{scores.deltaBowling > 0 ? "+" : ""}{scores.deltaBowling}</span>}
                             </p>
                           </div>
                           <div className="bg-dark-500 rounded p-2">
                             <p className="text-xs text-gray-400 mb-1">Fielding</p>
                             <p className="text-lg font-bold text-primary-500">
-                              {formatNumber(p.scores.reduce((sum, s) => sum + (Number(s.fielding_points) || 0), 0))}
+                              {formatNumber(scores.fielding)}
+                              {isLive && scores.deltaFielding !== 0 && <span className={`ml-1 text-xs ${scores.deltaFielding < 0 ? "text-red-400" : "text-green-400"}`}>{scores.deltaFielding > 0 ? "+" : ""}{scores.deltaFielding}</span>}
                             </p>
                           </div>
                           <div className="bg-dark-500 rounded p-2">
                             <p className="text-xs text-gray-400 mb-1">Bonus</p>
                             <p className="text-lg font-bold text-primary-500">
-                              {formatNumber(p.scores.reduce((sum, s) => sum + (Number(s.bonus_points) || 0), 0))}
+                              {formatNumber(scores.bonus)}
+                              {isLive && scores.deltaBonus !== 0 && <span className={`ml-1 text-xs ${scores.deltaBonus < 0 ? "text-red-400" : "text-green-400"}`}>{scores.deltaBonus > 0 ? "+" : ""}{scores.deltaBonus}</span>}
                             </p>
                           </div>
                         </div>
                       </div>
                     )}
                   </div>
+                  );
+                  })()}
+                  </React.Fragment>
                 ))}
               </div>
 
@@ -415,7 +500,11 @@ export default function TeamDetail() {
                   </thead>
                   <tbody>
                     {sortedPlayers.map((p) => (
-                      <React.Fragment key={p.id}>
+                      <React.Fragment key={p.id}> 
+                      {(() => {
+                        const scores = getPlayerDisplayScore(p);
+                        return (
+                        <>
                         <tr
                           className="border-b border-gray-700 hover:bg-dark-500 transition-colors cursor-pointer"
                           onClick={() => setExpandedPlayer(expandedPlayer === p.id ? null : p.id)}
@@ -444,7 +533,8 @@ export default function TeamDetail() {
                           <td className="py-3 px-4 text-gray-300 capitalize">{p.players?.role || "Unknown"}</td>
                           <td className="py-3 px-4 text-right text-gray-400">{p.scores?.length || 0}</td>
                           <td className="py-3 px-4 text-right font-bold text-primary-500">
-                            {formatNumber(playerTotalScore(p.scores))}
+                            {formatNumber(scores.total)}
+                            {isLive && scores.delta !== 0 && <span className={`ml-1 text-xs ${scores.delta < 0 ? "text-red-400" : "text-green-400"}`}>{scores.delta > 0 ? "+" : ""}{scores.delta}</span>}
                           </td>
                           <td className="py-3 px-4 text-right">
                             <span className="text-sm text-gray-400">
@@ -453,7 +543,7 @@ export default function TeamDetail() {
                           </td>
                         </tr>
 
-                        {expandedPlayer === p.id && p.scores.length > 0 && (
+                        {expandedPlayer === p.id && (
                           <tr className="bg-dark-600">
                             <td colSpan="5" className="py-4 px-4">
                               <div className="space-y-3">
@@ -462,32 +552,36 @@ export default function TeamDetail() {
                                   <div className="flex items-center justify-between mb-2">
                                     <div className="font-semibold text-sm">Total Across All Matches</div>
                                     <div className="font-bold text-primary-500 text-lg">
-                                      {formatNumber(playerTotalScore(p.scores))}
+                                      {formatNumber(scores.total)}
                                     </div>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2 text-xs">
                                     <div>
                                       <span className="text-gray-400">Batting:</span>{" "}
                                       <span className="text-primary-400">
-                                        {formatNumber(p.scores.reduce((sum, s) => sum + (Number(s.batting_points) || 0), 0))}
+                                        {formatNumber(scores.batting)}
+                                        {isLive && scores.deltaBatting !== 0 && <span className={`ml-1 text-xs ${scores.deltaBatting < 0 ? "text-red-400" : "text-green-400"}`}>{scores.deltaBatting > 0 ? "+" : ""}{scores.deltaBatting}</span>}
                                       </span>
                                     </div>
                                     <div>
                                       <span className="text-gray-400">Bowling:</span>{" "}
                                       <span className="text-primary-400">
-                                        {formatNumber(p.scores.reduce((sum, s) => sum + (Number(s.bowling_points) || 0), 0))}
+                                        {formatNumber(scores.bowling)}
+                                        {isLive && scores.deltaBowling !== 0 && <span className={`ml-1 text-xs ${scores.deltaBowling < 0 ? "text-red-400" : "text-green-400"}`}>{scores.deltaBowling > 0 ? "+" : ""}{scores.deltaBowling}</span>}
                                       </span>
                                     </div>
                                     <div>
                                       <span className="text-gray-400">Fielding:</span>{" "}
                                       <span className="text-primary-400">
-                                        {formatNumber(p.scores.reduce((sum, s) => sum + (Number(s.fielding_points) || 0), 0))}
+                                        {formatNumber(scores.fielding)}
+                                        {isLive && scores.deltaFielding !== 0 && <span className={`ml-1 text-xs ${scores.deltaFielding < 0 ? "text-red-400" : "text-green-400"}`}>{scores.deltaFielding > 0 ? "+" : ""}{scores.deltaFielding}</span>}
                                       </span>
                                     </div>
                                     <div>
                                       <span className="text-gray-400">Bonus:</span>{" "}
                                       <span className="text-primary-400">
-                                        {formatNumber(p.scores.reduce((sum, s) => sum + (Number(s.bonus_points) || 0), 0))}
+                                        {formatNumber(scores.bonus)}
+                                        {isLive && scores.deltaBonus !== 0 && <span className={`ml-1 text-xs ${scores.deltaBonus < 0 ? "text-red-400" : "text-green-400"}`}>{scores.deltaBonus > 0 ? "+" : ""}{scores.deltaBonus}</span>}
                                       </span>
                                     </div>
                                   </div>
@@ -529,6 +623,9 @@ export default function TeamDetail() {
                             </td>
                           </tr>
                         )}
+                        </>
+                        );
+                      })()}
                       </React.Fragment>
                     ))}
                   </tbody>

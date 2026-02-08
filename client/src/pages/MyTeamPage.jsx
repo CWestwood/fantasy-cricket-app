@@ -28,6 +28,8 @@ export default function MyTeamPage() {
   const [playerScores, setPlayerScores] = useState({});
   const [isSubstitutionModalOpen, setIsSubstitutionModalOpen] = useState(false);
   const [displayedPlayers, setDisplayedPlayers] = useState([]);
+  const [isLive, setIsLive] = useState(true);
+  const [livePlayerScores, setLivePlayerScores] = useState({});
 
   // Map roles to their icons
   const roleIconMap = {
@@ -90,6 +92,50 @@ export default function MyTeamPage() {
     fetchPlayerPerformance();
   }, [displayedPlayers, tournamentId, teamId]);
 
+  // Fetch live scores
+  useEffect(() => {
+    if (!selectedPlayers.length) return;
+
+    const fetchLiveScores = async () => {
+      const playerIds = selectedPlayers.map((p) => p.id);
+      const { data, error } = await supabase
+        .from("live_scoring")
+        .select("player_id, batting, bowling, fielding, bonus, total")
+        .in("player_id", playerIds);
+
+      if (error) {
+        console.error("Error fetching live scores:", error);
+        return;
+      }
+
+      const map = {};
+      if (data) {
+        data.forEach((row) => {
+          if (!map[row.player_id]) map[row.player_id] = { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 };
+          map[row.player_id].batting += Number(row.batting) || 0;
+          map[row.player_id].bowling += Number(row.bowling) || 0;
+          map[row.player_id].fielding += Number(row.fielding) || 0;
+          map[row.player_id].bonus += Number(row.bonus) || 0;
+          map[row.player_id].total += Number(row.total) || 0;
+        });
+      }
+      setLivePlayerScores(map);
+    };
+
+    fetchLiveScores();
+
+    const channel = supabase
+      .channel("my_team_live_scores")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "live_scoring" },
+        () => fetchLiveScores()
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedPlayers]);
+
   // Fetch leaderboard position
   useEffect(() => {
     if (!teamId || !tournamentId) return;
@@ -119,25 +165,45 @@ export default function MyTeamPage() {
     fetchLeaderboardPosition();
   }, [teamId, tournamentId]);
 
+  const getDisplayScore = (playerId) => {
+    const base = playerScores[playerId] || { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 };
+    const live = livePlayerScores[playerId] || { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 };
+
+    if (!isLive) return { ...base, delta: 0, deltaBatting: 0, deltaBowling: 0, deltaFielding: 0, deltaBonus: 0 };
+
+    return {
+      batting: (base.batting || 0) + live.batting,
+      bowling: (base.bowling || 0) + live.bowling,
+      fielding: (base.fielding || 0) + live.fielding,
+      bonus: (base.bonus || 0) + live.bonus,
+      total: (base.total || 0) + live.total,
+      delta: live.total,
+      deltaBatting: live.batting,
+      deltaBowling: live.bowling,
+      deltaFielding: live.fielding,
+      deltaBonus: live.bonus
+    };
+  };
+
   // Calculate total points from actual player scores
   const totalPoints = (displayedPlayers || selectedPlayers).reduce((sum, p) => {
-    return sum + (playerScores[p.id]?.total || 0);
+    return sum + getDisplayScore(p.id).total;
   }, 0);
 
   const battingTotal = (displayedPlayers || selectedPlayers).reduce((sum, p) => {
-    return sum + (playerScores[p.id]?.batting || 0);
+    return sum + getDisplayScore(p.id).batting;
   }, 0);
 
   const bowlingTotal = (displayedPlayers || selectedPlayers).reduce((sum, p) => {
-    return sum + (playerScores[p.id]?.bowling || 0);
+    return sum + getDisplayScore(p.id).bowling;
   }, 0);  
 
   const fieldingTotal = (displayedPlayers || selectedPlayers).reduce((sum, p) => {
-    return sum + (playerScores[p.id]?.fielding || 0);
+    return sum + getDisplayScore(p.id).fielding;
   }, 0);
 
   const bonusTotal = (displayedPlayers || selectedPlayers).reduce((sum, p) => {
-    return sum + (playerScores[p.id]?.bonus || 0);
+    return sum + getDisplayScore(p.id).bonus;
   }, 0);
 
   // Determine displayed players' substitution status by consulting the substitutions table
@@ -215,9 +281,28 @@ export default function MyTeamPage() {
         <div className="bg-card-light rounded-2xl shadow-card p-4 sm:p-6">
           {/* Team Info */}
           <div className="mb-4 sm:mb-6">
-            <h1 className="text-2xl sm:text-3xl font-bold text-primary-500 mb-1 sm:mb-2">
-              {teamName || "Your Team"}
-            </h1>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <h1 className="text-2xl sm:text-3xl font-bold text-primary-500 mb-1 sm:mb-2">
+                {teamName || "Your Team"}
+              </h1>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-300">Live</span>
+                  <button
+                    onClick={() => setIsLive(!isLive)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      isLive ? "bg-primary-500" : "bg-gray-600"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        isLive ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Stats Grid */}
@@ -283,7 +368,11 @@ export default function MyTeamPage() {
               {/* Mobile Card View */}
               <div className="sm:hidden space-y-2">
                 {sortedPlayers.map((player) => (
-                  <div
+                  <React.Fragment key={player.id}>
+                  {(() => {
+                    const scores = getDisplayScore(player.id);
+                    return (
+                    <div
                     key={player.id}
                     className={`${
                       player.is_substituted 
@@ -336,7 +425,8 @@ export default function MyTeamPage() {
 
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <p className={`w-full text-left text-sm font-bold ${player.is_substituted ? "text-gray-600" : "text-primary-500"}`}>
-                          {playerScores[player.id]?.total || 0}
+                          {scores.total}
+                          {isLive && scores.delta !== 0 && <span className={`ml-1 text-xs ${scores.delta < 0 ? "text-red-400" : "text-green-400"}`}>{scores.delta > 0 ? "+" : ""}{scores.delta}</span>}
                         </p>
                         {/* Arrow Icon - Fixed */}
                         <svg 
@@ -360,32 +450,39 @@ export default function MyTeamPage() {
                           <div className={`${player.is_substituted ? "bg-gray-600" : "bg-dark-500"} rounded p-2`}>
                             <p className={`text-xs ${player.is_substituted ? "text-gray-500" : "text-gray-400"} mb-1`}>Batting</p>
                             <p className={`text-lg font-bold ${player.is_substituted ? "text-gray-400" : "text-primary-500"}`}>
-                              {playerScores[player.id]?.batting || 0}
+                              {scores.batting}
+                              {isLive && scores.deltaBatting !== 0 && <span className={`ml-1 text-xs ${scores.deltaBatting < 0 ? "text-red-400" : "text-green-400"}`}>{scores.deltaBatting > 0 ? "+" : ""}{scores.deltaBatting}</span>}
                             </p>
                           </div>
                           <div className={`${player.is_substituted ? "bg-gray-600" : "bg-dark-500"} rounded p-2`}>
                             <p className={`text-xs ${player.is_substituted ? "text-gray-500" : "text-gray-400"} mb-1`}>Bowling</p>
                             <p className={`text-lg font-bold ${player.is_substituted ? "text-gray-400" : "text-primary-500"}`}>
-                              {playerScores[player.id]?.bowling || 0}
+                              {scores.bowling}
+                              {isLive && scores.deltaBowling !== 0 && <span className={`ml-1 text-xs ${scores.deltaBowling < 0 ? "text-red-400" : "text-green-400"}`}>{scores.deltaBowling > 0 ? "+" : ""}{scores.deltaBowling}</span>}
                             </p>
                           </div>
                           <div className={`${player.is_substituted ? "bg-gray-600" : "bg-dark-500"} rounded p-2`}>
                             <p className={`text-xs ${player.is_substituted ? "text-gray-500" : "text-gray-400"} mb-1`}>Fielding</p>
                             <p className={`text-lg font-bold ${player.is_substituted ? "text-gray-400" : "text-primary-500"}`}>
-                              {playerScores[player.id]?.fielding || 0}
+                              {scores.fielding}
+                              {isLive && scores.deltaFielding !== 0 && <span className={`ml-1 text-xs ${scores.deltaFielding < 0 ? "text-red-400" : "text-green-400"}`}>{scores.deltaFielding > 0 ? "+" : ""}{scores.deltaFielding}</span>}
                             </p>
                           </div>
                           <div className={`${player.is_substituted ? "bg-gray-600" : "bg-dark-500"} rounded p-2`}>
                             <p className={`text-xs ${player.is_substituted ? "text-gray-500" : "text-gray-400"} mb-1`}>Bonus</p>
                             <p className={`text-lg font-bold ${player.is_substituted ? "text-gray-400" : "text-primary-500"}`}> </p>
                             <p className="text-lg font-bold text-primary-500">
-                              {playerScores[player.id]?.bonus || 0}
+                              {scores.bonus}
+                              {isLive && scores.deltaBonus !== 0 && <span className={`ml-1 text-xs ${scores.deltaBonus < 0 ? "text-red-400" : "text-green-400"}`}>{scores.deltaBonus > 0 ? "+" : ""}{scores.deltaBonus}</span>}
                             </p>
                           </div>
                         </div>
                       </div>
                     )}
                   </div>
+                  );
+                  })()}
+                  </React.Fragment>
                 ))}
               </div>
 
@@ -407,7 +504,11 @@ export default function MyTeamPage() {
                
                 <tbody>
                   {sortedPlayers.map((player) => (
-                    <React.Fragment key={player.id}>
+                    <React.Fragment key={player.id}> 
+                    {(() => {
+                      const scores = getDisplayScore(player.id);
+                      return (
+                      <>
                       <tr
                         onClick={() => setExpandedPlayerId(expandedPlayerId === player.id ? null : player.id)}
                         className={`border-gray-700  ${player.is_substituted 
@@ -459,7 +560,8 @@ export default function MyTeamPage() {
                           </span>
                         </td>
                         <td className={`py-3 px-4 text-center text-lg font-bold rounded-r-xl ${player.is_substituted ? "text-gray-400" : "text-primary-500"}`}>
-                          {playerScores[player.id]?.total || 0}
+                          {scores.total}
+                          {isLive && scores.delta !== 0 && <span className={`ml-1 text-xs ${scores.delta < 0 ? "text-red-400" : "text-green-400"}`}>{scores.delta > 0 ? "+" : ""}{scores.delta}</span>}
                         </td>
                       </tr>
                       {expandedPlayerId === player.id && (
@@ -469,31 +571,38 @@ export default function MyTeamPage() {
                               <div className={`${player.is_substituted ? "bg-gray-700" : "bg-dark-500"} rounded-lg p-3 text-center`}>
                                 <p className={`text-sm mb-2 ${player.is_substituted ? "text-gray-500" : "text-gray-400"}`}>Batting</p>
                                 <p className={`text-2xl font-bold ${player.is_substituted ? "text-gray-400" : "text-primary-500"}`}>
-                                  {playerScores[player.id]?.batting || 0}
+                                  {scores.batting}
+                                  {isLive && scores.deltaBatting !== 0 && <span className={`ml-1 text-xs ${scores.deltaBatting < 0 ? "text-red-400" : "text-green-400"}`}>{scores.deltaBatting > 0 ? "+" : ""}{scores.deltaBatting}</span>}
                                 </p>
                               </div>
                               <div className={`${player.is_substituted ? "bg-gray-700" : "bg-dark-500"} rounded-lg p-3 text-center`}>
                                 <p className={`text-sm mb-2 ${player.is_substituted ? "text-gray-500" : "text-gray-400"}`}>Bowling</p>
                                 <p className={`text-2xl font-bold ${player.is_substituted ? "text-gray-400" : "text-primary-500"}`}>
-                                  {playerScores[player.id]?.bowling || 0}
+                                  {scores.bowling}
+                                  {isLive && scores.deltaBowling !== 0 && <span className={`ml-1 text-xs ${scores.deltaBowling < 0 ? "text-red-400" : "text-green-400"}`}>{scores.deltaBowling > 0 ? "+" : ""}{scores.deltaBowling}</span>}
                                 </p>
                               </div>
                               <div className={`${player.is_substituted ? "bg-gray-700" : "bg-dark-500"} rounded-lg p-3 text-center`}>
                                 <p className={`text-sm mb-2 ${player.is_substituted ? "text-gray-500" : "text-gray-400"}`}>Fielding</p>
                                 <p className={`text-2xl font-bold ${player.is_substituted ? "text-gray-400" : "text-primary-500"}`}>
-                                  {playerScores[player.id]?.fielding || 0}
+                                  {scores.fielding}
+                                  {isLive && scores.deltaFielding !== 0 && <span className={`ml-1 text-xs ${scores.deltaFielding < 0 ? "text-red-400" : "text-green-400"}`}>{scores.deltaFielding > 0 ? "+" : ""}{scores.deltaFielding}</span>}
                                 </p>
                               </div>
                               <div className={`${player.is_substituted ? "bg-gray-700" : "bg-dark-500"} rounded-lg p-3 text-center`}>
                                 <p className={`text-sm mb-2 ${player.is_substituted ? "text-gray-500" : "text-gray-400"}`}>Bonus</p>
                                 <p className={`text-2xl font-bold ${player.is_substituted ? "text-gray-400" : "text-primary-500"}`}>
-                                  {playerScores[player.id]?.bonus || 0}
+                                  {scores.bonus}
+                                  {isLive && scores.deltaBonus !== 0 && <span className={`ml-1 text-xs ${scores.deltaBonus < 0 ? "text-red-400" : "text-green-400"}`}>{scores.deltaBonus > 0 ? "+" : ""}{scores.deltaBonus}</span>}
                                 </p>
                               </div>
                             </div>
                           </td>
                         </tr>
                       )}
+                      </>
+                      );
+                    })()}
                     </React.Fragment>
                   ))}
                 </tbody>
