@@ -124,7 +124,8 @@ const PlayerStats = () => {
           const { data: tpData } = await supabase
             .from("team_players")
             .select("player_id")
-            .in("team_id", teamIds);
+            .in("team_id", teamIds)
+            .eq("is_substituted", false);
           tpData?.forEach(tp => {
             pickCounts[tp.player_id] = (pickCounts[tp.player_id] || 0) + 1;
           });
@@ -403,6 +404,10 @@ const PlayerStats = () => {
                         <div className="bg-dark-500 rounded-xl p-2 text-center">
                           <p className="text-gray-400">Bonus</p>
                           <p className="font-semibold text-primary-500">{formatScore(row.bonus)}</p>
+                        </div>
+                        <div className="bg-dark-500 rounded-xl p-2 text-center col-span-2">
+                          <p className="text-gray-400">Picked by:</p>
+                          <p className="font-semibold text-primary-500">{row.teamsPicked}</p>
                         </div>
                       </div>
                       <div className="space-y-2">

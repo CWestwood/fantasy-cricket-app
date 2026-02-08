@@ -6,6 +6,7 @@ import BatIcon from "../assets/icons/bat_white.svg";
 import BallIcon from "../assets/icons/ball_white.svg";
 import AllrounderIcon from "../assets/icons/allrounder_white.svg";
 import WkglovesIcon from "../assets/icons/wkgloves_white.svg";
+import { FiChevronDown } from "react-icons/fi";
 
 const formatNumber = (value) => {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
@@ -23,6 +24,8 @@ export default function PlayerProfile() {
   const [error, setError] = useState("");
   const [player, setPlayer] = useState(null);
   const [performances, setPerformances] = useState([]);
+  const [pickedByTeams, setPickedByTeams] = useState([]);
+  const [showPicks, setShowPicks] = useState(false);
 
   const roleIconMap = {
     batter: BatIcon,
@@ -63,6 +66,26 @@ export default function PlayerProfile() {
         }
 
         setPlayer(playerData);
+
+        // Fetch picks
+        const { data: picksData } = await supabase
+          .from("team_players")
+          .select(`
+            teams!inner (
+              team_name,
+              users (username)
+            )
+          `)
+          .eq("player_id", playerId)
+          .eq("is_substituted", false)
+          .eq("teams.tournament_id", tournamentId);
+
+        if (picksData) {
+          setPickedByTeams(picksData.map(p => ({
+            teamName: p.teams?.team_name,
+            userName: p.teams?.users?.username
+          })));
+        }
 
         const { data: performanceData, error: performanceError } = await supabase
           .from("player_performance_summary")
@@ -157,7 +180,7 @@ export default function PlayerProfile() {
           {error && (
             <div className="text-sm text-red-400">{error}</div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-dark-500 rounded-xl p-4 text-center">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-dark-500 rounded-xl p-4 text-center">
             <div>
               <p className="text-xs text-gray-400">Team</p>
               <p className="font-semibold text-lg">{player?.team_name || "Unknown"}</p>
@@ -165,8 +188,31 @@ export default function PlayerProfile() {
             <div>
               <p className="text-xs text-gray-400">Matches</p>
               <p className="font-semibold text-lg">{summary.matches}</p>
-            </div>         
-             
+            </div>
+            <div className="relative">
+              <p className="text-xs text-gray-400">Picks</p>
+              <button 
+                onClick={() => setShowPicks(!showPicks)}
+                disabled={pickedByTeams.length === 0}
+                className="flex items-center justify-center gap-1 w-full font-semibold text-lg disabled:cursor-default hover:text-primary-400 transition-colors"
+              >
+                {pickedByTeams.length}
+                {pickedByTeams.length > 0 && (
+                  <FiChevronDown className={`transition-transform ${showPicks ? "rotate-180" : ""}`} />
+                )}
+              </button>
+              
+              {showPicks && pickedByTeams.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-dark-600 rounded-lg shadow-xl border border-gray-700 z-20 max-h-48 overflow-y-auto">
+                  {pickedByTeams.map((t, i) => (
+                    <div key={i} className="p-2 text-sm border-b border-gray-700 last:border-0 hover:bg-dark-500 text-left">
+                      <p className="font-semibold text-white truncate">{t.teamName}</p>
+                      <p className="text-xs text-gray-400 truncate">{t.userName}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="bg-dark-500 rounded-xl p-4 text-center">
             <p className="text-xs text-gray-400 uppercase tracking-widest">Total Points</p>
