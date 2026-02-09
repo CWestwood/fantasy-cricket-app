@@ -88,7 +88,7 @@ export default function PlayerProfile() {
         }
 
         const { data: performanceData, error: performanceError } = await supabase
-          .from("player_performance_summary")
+          .from("tournament_player_performance")
           .select(
             "match_id, match_name, match_date, match_status, batting, bowling, fielding, bonus, fantasy_total"
           )
