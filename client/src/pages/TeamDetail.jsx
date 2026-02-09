@@ -319,6 +319,7 @@ export default function TeamDetail() {
     return acc;
   }, { total: 0, batting: 0, bowling: 0, fielding: 0, bonus: 0, delta: 0 });
 
+  const totalAppearances = players.reduce((acc, p) => acc + (p.scores?.length || 0), 0);
 
   // Separate and sort players
   const activePlayers = players.filter(p => !p.is_substituted).sort((a, b) => {
@@ -362,11 +363,11 @@ export default function TeamDetail() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-primary-500">{team?.team_name || "Team"}</h1>
-                <p className="text-sm text-gray-300 mt-1">
-                  Manager: {username || "Unknown"}
+                <p className="text-l text-gray-300 mt-1">
+                 {username || "Unknown"}
                 </p>
                 <p className="text-sm text-gray-400 mt-1">
-                  {players.length} {players.length === 1 ? "player" : "players"}
+                  {totalAppearances} {totalAppearances === 1 ? "appearance" : "appearances"}
                 </p>
               </div>
               <div className="flex items-center gap-3">

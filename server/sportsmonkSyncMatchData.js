@@ -679,7 +679,7 @@ async function syncMatchData() {
               player_id: null,
               player_name: null,
               potm: false,
-              hattrick: 0,
+              bonus_hattrick: 0,
               captured: false,
               updated_at: new Date().toISOString()
             }, 

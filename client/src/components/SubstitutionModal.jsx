@@ -83,7 +83,7 @@ export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, ca
         if (available.length > 0) {
           const playerIds = available.map((p) => p.id);
           const { data: performanceData, error: perfError } = await supabase
-            .from("player_performance_summary")
+            .from("tournament_player_performance")
             .select("player_id, fantasy_total")
             .in("player_id", playerIds)
             .eq("tournament_id", tournamentId);
@@ -97,7 +97,7 @@ export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, ca
               scoreMap[row.player_id] += row.fantasy_total || 0;
             });
           }
-          setPlayerScores(scoreMap);
+          setPlayerScores((prev) => ({ ...prev, ...scoreMap }));
         }
       } catch (err) {
         console.error("Error loading available players:", err);
@@ -120,7 +120,8 @@ export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, ca
         .from("player_performance_summary")
         .select("player_id, fantasy_total")
         .in("player_id", playerIds)
-        .eq("tournament_id", tournamentId);
+        .eq("tournament_id", tournamentId)
+        .eq("team_id", teamId);
 
       if (perfError) console.error("Error loading selected player scores:", perfError);
 
