@@ -130,6 +130,23 @@ export default function TeamDetail() {
         return;
       }
 
+      // Fetch substitutions to display dates
+      const { data: subsData } = await supabase
+        .from("substitutions")
+        .select("player_in_id, player_out_id, requested_at")
+        .eq("team_id", teamId)
+        .eq("status", "completed")
+        .order("requested_at", { ascending: true });
+
+      const subInMap = {};
+      const subOutMap = {};
+      if (subsData) {
+        subsData.forEach(sub => {
+          if (sub.player_in_id) subInMap[sub.player_in_id] = sub.requested_at;
+          if (sub.player_out_id) subOutMap[sub.player_out_id] = sub.requested_at;
+        });
+      }
+
       // 2. Fetch performance data from materialized view (only for players who have played)
       const performanceRes = await supabase
         .from("player_performance_summary")
@@ -186,6 +203,8 @@ export default function TeamDetail() {
           multiplier: tp.squads.multiplier,
         },
         scores: performanceMap[tp.player_id] || [],
+        subInDate: subInMap[tp.player_id],
+        subOutDate: subOutMap[tp.player_id],
       }));
 
 
@@ -251,6 +270,15 @@ export default function TeamDetail() {
     return n % 1 === 0 ? String(n) : n.toFixed(1);
   };
 
+  const formatDate = (isoString) => {
+    if (!isoString) return "";
+    const date = new Date(isoString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
   const getPlayerDisplayScore = (player) => {
     const baseTotal = (player.scores || []).reduce((sum, s) => sum + (Number(s.total_points) || 0), 0);
     const baseBatting = (player.scores || []).reduce((sum, s) => sum + (Number(s.batting_points) || 0), 0);
@@ -292,12 +320,18 @@ export default function TeamDetail() {
   }, { total: 0, batting: 0, bowling: 0, fielding: 0, bonus: 0, delta: 0 });
 
 
-  // Sort players with captain first
-  const sortedPlayers = [...players].sort((a, b) => {
+  // Separate and sort players
+  const activePlayers = players.filter(p => !p.is_substituted).sort((a, b) => {
     if (a.is_captain) return -1;
     if (b.is_captain) return 1;
     return 0;
   });
+  const substitutedPlayers = players.filter(p => p.is_substituted);
+
+  const playerGroups = [
+    { title: null, players: activePlayers, isSubstituted: false },
+    ...(substitutedPlayers.length > 0 ? [{ title: "Substituted Out", players: substitutedPlayers, isSubstituted: true }] : [])
+  ];
 
   if (loading) {
     return (
@@ -383,14 +417,21 @@ export default function TeamDetail() {
             <div className="space-y-2">
               {/* Mobile card list */}
               <div className="sm:hidden space-y-2">
-                {sortedPlayers.map((p) => (
+                {playerGroups.map((group) => (
+                  <React.Fragment key={group.title || 'active'}>
+                  {group.title && (
+                    <div className="mt-6 mb-2 px-1">
+                      <h3 className="text-gray-400 text-xs font-bold uppercase tracking-wider">{group.title}</h3>
+                    </div>
+                  )}
+                  {group.players.map((p) => (
                   <React.Fragment key={p.id}>
                   {(() => {
                     const scores = getPlayerDisplayScore(p);
                     return (
                   <div
                     key={p.id}
-                    className="bg-dark-500 rounded-lg overflow-hidden relative"
+                    className={`${group.isSubstituted ? "bg-gray-800/60 opacity-75" : "bg-dark-500"} rounded-lg overflow-hidden relative`}
                   >
                     {p.players?.multiplier && p.players.multiplier !== 1 && (
                       <div className="absolute top-0 right-5 z-10 flex items-center justify-center  text-gray-300 rounded-full w-5 h-5 text-xs font-normal">
@@ -424,6 +465,12 @@ export default function TeamDetail() {
                             {p.players?.name || "Unknown"}
                             {p.is_captain && " (C)"}
                           </button>
+                          {p.is_substituted && p.subOutDate && (
+                            <p className="text-[10px] text-red-400">OUT {formatDate(p.subOutDate)}</p>
+                          )}
+                          {!p.is_substituted && p.subInDate && (
+                            <p className="text-[10px] text-green-800">IN {formatDate(p.subInDate)}</p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
@@ -484,6 +531,8 @@ export default function TeamDetail() {
                   })()}
                   </React.Fragment>
                 ))}
+                </React.Fragment>
+                ))}
               </div>
 
               {/* Desktop table */}
@@ -499,14 +548,23 @@ export default function TeamDetail() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedPlayers.map((p) => (
+                    {playerGroups.map((group) => (
+                      <React.Fragment key={group.title || 'active'}>
+                      {group.title && (
+                        <tr>
+                          <td colSpan="5" className="py-3 px-4 text-xs font-bold uppercase tracking-wider text-gray-400 bg-dark-600/50">
+                            {group.title}
+                          </td>
+                        </tr>
+                      )}
+                      {group.players.map((p) => (
                       <React.Fragment key={p.id}> 
                       {(() => {
                         const scores = getPlayerDisplayScore(p);
                         return (
                         <>
                         <tr
-                          className="border-b border-gray-700 hover:bg-dark-500 transition-colors cursor-pointer"
+                          className={`border-b border-gray-700 ${group.isSubstituted ? "bg-gray-800/40 text-gray-400" : "hover:bg-dark-500"} transition-colors cursor-pointer`}
                           onClick={() => setExpandedPlayer(expandedPlayer === p.id ? null : p.id)}
                         >
                           <td className="py-3 px-4 font-semibold">
@@ -519,15 +577,23 @@ export default function TeamDetail() {
                                   className="w-5 h-5 object-contain flex-shrink-0"
                                 />
                               )}
-                              <button
-                                type="button"
-                                onClick={(e) => goToPlayerProfile(e, p.players?.id)}
-                                className={`focus:outline-none font-semibold ${p.is_captain ? "text-yellow-400" : (!TEAM_HEX_COLORS[p.players?.team_name] ? "text-white" : "")}`}
-                                style={!p.is_captain && TEAM_HEX_COLORS[p.players?.team_name] ? { color: TEAM_HEX_COLORS[p.players?.team_name] } : {}}
-                              >
-                                {p.players?.name || "Unknown"}
-                                {p.is_captain && " (C)"}
-                              </button>
+                              <div className="flex flex-col items-start">
+                                <button
+                                  type="button"
+                                  onClick={(e) => goToPlayerProfile(e, p.players?.id)}
+                                  className={`focus:outline-none font-semibold ${p.is_captain ? "text-yellow-400" : (!TEAM_HEX_COLORS[p.players?.team_name] ? "text-white" : "")}`}
+                                  style={!p.is_captain && TEAM_HEX_COLORS[p.players?.team_name] ? { color: TEAM_HEX_COLORS[p.players?.team_name] } : {}}
+                                >
+                                  {p.players?.name || "Unknown"}
+                                  {p.is_captain && " (C)"}
+                                </button>
+                                {p.is_substituted && p.subOutDate && (
+                                  <span className="text-[10px] text-red-400 font-normal">OUT {formatDate(p.subOutDate)}</span>
+                                )}
+                                {!p.is_substituted && p.subInDate && (
+                                  <span className="text-[10px] text-green-800 font-normal">IN {formatDate(p.subInDate)}</span>
+                                )}
+                              </div>
                             </div>
                           </td>
                           <td className="py-3 px-4 text-gray-300 capitalize">{p.players?.role || "Unknown"}</td>
@@ -627,6 +693,8 @@ export default function TeamDetail() {
                         );
                       })()}
                       </React.Fragment>
+                    ))}
+                    </React.Fragment>
                     ))}
                   </tbody>
                 </table>
