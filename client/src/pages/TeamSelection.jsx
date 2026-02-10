@@ -52,6 +52,7 @@ export default function TeamSelection() {
     username,
     setUsername,
     teamId,
+    activityState,
   } = useTeam();
 
   const hasInitializedRef = useRef(false);
@@ -645,6 +646,7 @@ useEffect(() => {
                 </>
               )}
 
+              {activityState === "registering" ? (
               <button
                 type="button"
                 onClick={(e) => {
@@ -661,6 +663,11 @@ useEffect(() => {
               >
                 Save Team
               </button>
+              ) : (
+                <div className="mt-4 w-full px-4 py-3 bg-gray-600 text-gray-400 text-center font-semibold rounded-full shadow-card cursor-not-allowed">
+                  Registration Closed
+                </div>
+              )}
             </div>
           </div>
         </div>

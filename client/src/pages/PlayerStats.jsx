@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiChevronDown } from "react-icons/fi";
+import { FiChevronDown, FiSearch } from "react-icons/fi";
 import { supabase } from "../utils/supabaseClient";
 import { useTeam } from "../context/TeamContext";
 import BatIcon from "../assets/icons/bat_white.svg";
@@ -36,6 +36,7 @@ const PlayerStats = () => {
   const [error, setError] = useState("");
   const [expandedPlayerId, setExpandedPlayerId] = useState(null);
   const [selectedRoles, setSelectedRoles] = useState(new Set());
+  const [searchTerm, setSearchTerm] = useState("");
 
   const roles = ["batter", "bowler", "allrounder", "wicketkeeper"];
 
@@ -58,9 +59,11 @@ const PlayerStats = () => {
     });
   };
 
-  const filteredPlayerRows = selectedRoles.size === 0
-    ? playerRows
-    : playerRows.filter((row) => selectedRoles.has(row.role.toLowerCase()));
+  const filteredPlayerRows = playerRows.filter((row) => {
+    const matchesRole = selectedRoles.size === 0 || selectedRoles.has(row.role.toLowerCase());
+    const matchesSearch = !searchTerm.trim() || (row.playerName || "").toLowerCase().includes(searchTerm.toLowerCase()) || (row.teamName || "").toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesRole && matchesSearch;
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -323,6 +326,22 @@ const PlayerStats = () => {
                 </button>
                 );
             })}
+            </div>
+
+            {/* Search Bar */}
+            <div className="pt-2 max-w-md mx-auto w-full">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FiSearch className="text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search player or team..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-dark-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
+                />
+              </div>
             </div>
         </div>
 
