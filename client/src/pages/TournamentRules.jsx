@@ -19,7 +19,7 @@ const TournamentRules = () => {
             <p className="text-yellow-300 font-semibold text-sm"> * Initial Team Selection *</p>
           </li>
           <li><span className="text-white font-semibold text-sm">Super-8 Stage:</span> 
-            <p className="text-sm"> 8 Teams in 1 group with 4 Qualifying</p>
+            <p className="text-sm"> 8 Teams in 2 groups with top 2 from each group qualifying</p>
             <p className="text-yellow-300 font-semibold text-sm"> * Second Team Selection *</p>
           </li>
           <li><span className="text-white font-semibold text-sm">Knockout Stage:</span>
