@@ -13,6 +13,7 @@ export default function Leaderboard() {
   const [isLive, setIsLive] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [liveScores, setLiveScores] = useState({});
+  const [extraStats, setExtraStats] = useState({});
 
   useEffect(() => {
     console.debug("Leaderboard: useEffect tournamentId ->", tournamentId);
@@ -41,6 +42,55 @@ export default function Leaderboard() {
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tournamentId]);
+
+  useEffect(() => {
+    if (!tournamentId) return;
+
+    async function fetchExtraStats() {
+      try {
+        // 1. Get Max Subs
+        const { data: settings } = await supabase
+          .from('tournament_settings')
+          .select('max_subs')
+          .eq('tournament_id', tournamentId)
+          .single();
+        const maxSubs = settings?.max_subs || 3;
+
+        // 2. Get Teams Subs Used
+        const { data: teamsData } = await supabase
+          .from('teams')
+          .select('id, subs_used')
+          .eq('tournament_id', tournamentId);
+
+        // 3. Get Appearances (count of rows in player_performance_summary per team)
+        const { data: perfData } = await supabase
+          .from('player_performance_summary')
+          .select('team_id')
+          .eq('tournament_id', tournamentId);
+
+        const stats = {};
+        
+        teamsData?.forEach(t => {
+          stats[t.id] = {
+            subsRemaining: Math.max(0, maxSubs - (t.subs_used || 0)),
+            appearances: 0
+          };
+        });
+
+        perfData?.forEach(row => {
+          if (stats[row.team_id]) {
+            stats[row.team_id].appearances += 1;
+          }
+        });
+
+        setExtraStats(stats);
+      } catch (err) {
+        console.error("Error fetching extra stats:", err);
+      }
+    }
+
+    fetchExtraStats();
   }, [tournamentId]);
 
   async function fetchLeaderboard() {
@@ -123,6 +173,7 @@ export default function Leaderboard() {
         fielding: 0,
         bonus: 0,
       };
+      const extra = extraStats[row.team_id] || { subsRemaining: '-', appearances: 0 };
 
       if (!isLive) {
         return {
@@ -138,6 +189,9 @@ export default function Leaderboard() {
           live_delta_fielding: 0,
           live_delta_bonus: 0,
           display_rank: row.rank_position,
+          display_rank_change: row.rank_change || 0,
+          appearances: extra.appearances,
+          subsRemaining: extra.subsRemaining,
         };
       }
 
@@ -153,6 +207,8 @@ export default function Leaderboard() {
         live_delta_bowling: live.bowling,
         live_delta_fielding: live.fielding,
         live_delta_bonus: live.bonus,
+        appearances: extra.appearances,
+        subsRemaining: extra.subsRemaining,
       };
     });
 
@@ -161,13 +217,14 @@ export default function Leaderboard() {
       data = data.map((row, index) => ({
         ...row,
         display_rank: index + 1,
+        display_rank_change: row.rank_position ? (row.rank_position - (index + 1)) : 0,
       }));
     } else {
       data.sort((a, b) => a.rank_position - b.rank_position);
     }
 
     return data;
-  }, [rows, liveScores, isLive]);
+  }, [rows, liveScores, isLive, extraStats]);
 
   return (
     <div className="min-h-screen bg-dark-500 text-white py-6">
@@ -219,7 +276,14 @@ export default function Leaderboard() {
                   <div key={r.team_id} className="bg-dark-500 rounded-lg p-3 cursor-pointer hover:bg-dark-400 transition-colors">
                     <div onClick={() => navigate(`/team/${r.team_id}`)}>
                       <div className="flex items-center justify-between gap-3">
-                        <div className="text-primary-500 font-bold text-lg">#{r.display_rank}</div>
+                        <div className="flex flex-col items-center min-w-[2rem]">
+                          <div className="text-primary-500 font-bold text-lg">#{r.display_rank}</div>
+                          {r.display_rank_change !== 0 && (
+                            <span className={`text-[10px] font-bold ${r.display_rank_change > 0 ? "text-green-400" : "text-red-400"}`}>
+                              {r.display_rank_change > 0 ? "▲" : "▼"} {Math.abs(r.display_rank_change)}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex-1 text-center">
                           <div className="font-semibold">{r.team_name}</div>
                           <div className="text-xs text-gray-400">{r.username}</div>
@@ -257,7 +321,7 @@ export default function Leaderboard() {
                     {expandedTeam === r.team_id && (() => {
                       const breakdownSum = r.display_batting + r.display_bowling + r.display_fielding + r.display_bonus;
                       return (
-                        <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div className="mt-3 grid grid-cols-3 gap-2">
                           <div className="bg-dark-600 p-2 rounded">
                             <div className="text-xs text-gray-400">Batting</div>
                             <div className="font-bold text-primary-500">
@@ -286,8 +350,16 @@ export default function Leaderboard() {
                               {isLive && r.live_delta_bonus !== 0 && <span className={`ml-1 text-xs ${r.live_delta_bonus < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_bonus < 0 ? "" : "+"}{formatNumber(r.live_delta_bonus)}</span>}
                             </div>
                           </div>
+                          <div className="bg-dark-600 p-2 rounded">
+                            <div className="text-xs text-gray-400">Appearances</div>
+                            <div className="font-bold text-primary-500">{r.appearances}</div>
+                          </div>
+                          <div className="bg-dark-600 p-2 rounded">
+                            <div className="text-xs text-gray-400">Subs Left</div>
+                            <div className="font-bold text-primary-500">{r.subsRemaining}</div>
+                          </div>
                           {Math.abs(breakdownSum - r.display_total) > 0.01 && (
-                            <div className="col-span-2 bg-yellow-900/30 border border-yellow-600 rounded p-2">
+                            <div className="col-span-3 bg-yellow-900/30 border border-yellow-600 rounded p-2">
                               <div className="text-xs text-yellow-300">⚠ Breakdown sum {formatNumber(breakdownSum)} ≠ Total {formatNumber(r.display_total)}</div>
                             </div>
                           )}
@@ -314,7 +386,14 @@ export default function Leaderboard() {
                     {processedRows.map((r) => (
                       <React.Fragment key={r.team_id}>
                         <tr className="border-b border-gray-700 hover:bg-dark-500 transition-colors cursor-pointer" onClick={() => navigate(`/team/${r.team_id}`)}>
-                          <td className="py-3 px-4 align-top">{r.display_rank}</td>
+                          <td className="py-3 px-4 align-top">
+                            <div className="flex flex-col items-center">
+                              <span>{r.display_rank}</span>
+                              {r.display_rank_change !== 0 && (
+                                <span className={`text-xs font-bold ${r.display_rank_change > 0 ? "text-green-400" : "text-red-400"}`}>{r.display_rank_change > 0 ? "▲" : "▼"} {Math.abs(r.display_rank_change)}</span>
+                              )}
+                            </div>
+                          </td>
                           <td className="py-3 px-4">
                             <div className="font-semibold">{r.team_name}</div>
                           </td>

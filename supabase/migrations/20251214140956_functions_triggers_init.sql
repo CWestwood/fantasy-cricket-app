@@ -11,6 +11,7 @@ RETURNS TABLE (
     fielding_total numeric,
     bonus_total numeric,
     rank_position integer,
+    rank_change integer,
     updated_at timestamptz
 )
 LANGUAGE sql
@@ -27,8 +28,16 @@ AS $$
         fielding_total,
         bonus_total,
         rank_position,
+        COALESCE((
+            SELECT h.rank_change 
+            FROM tournament_leaderboard_history h 
+            WHERE h.team_id = c.team_id 
+              AND h.tournament_id = c.tournament_id 
+            ORDER BY h.created_at DESC 
+            LIMIT 1
+        ), 0) as rank_change,
         updated_at
-    FROM tournament_leaderboard_cache
+    FROM tournament_leaderboard_cache c
     WHERE tournament_id = p_tournament_id
     ORDER BY rank_position;
 $$;
@@ -1181,6 +1190,18 @@ BEGIN
   END IF;
 
   RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION initialize_tournament_leaderboard(p_tournament_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Call the refresh function with a NULL match_id to initialize
+    PERFORM refresh_tournament_leaderboard_with_history(p_tournament_id, NULL);
+    
+    RAISE NOTICE 'Tournament % leaderboard initialized', p_tournament_id;
 END;
 $$;
 
