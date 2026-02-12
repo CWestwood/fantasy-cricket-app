@@ -25,7 +25,7 @@ const Navbar = () => {
           .select('role_level')
           .eq('id', user.id)
           .single();
-        if (data?.role === 'admin') setIsAdmin(true);
+        if (data?.role_level === 'admin') setIsAdmin(true);
       };
       checkRole();
     } else {
@@ -42,6 +42,7 @@ const Navbar = () => {
     { href: '#about', text: 'About' },
     { href: '#projects', text: 'Projects' },
     { href: '#contact', text: 'Contact' },
+    { href: '/substitutionlog', text: 'Substitution Log' },
   ];
 
   if (isAdmin) {
