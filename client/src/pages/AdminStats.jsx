@@ -82,12 +82,12 @@ const AdminStats = () => {
           .select(`
             id,
             requested_at,
+            status,
             teams (team_name, users (username)),
             player_out:squads!player_out_id (name, role),
             player_in:squads!player_in_id (name, role)
           `)
           .eq('tournament_id', tournament.id)
-          .eq('status', 'completed')
           .order('requested_at', { ascending: false });
 
         if (subsError) console.error('Error fetching substitutions:', subsError);
@@ -222,6 +222,7 @@ const AdminStats = () => {
             <thead className="bg-gray-100 sticky top-0">
               <tr>
                 <th className="p-3 border-b">Time</th>
+                <th className="p-3 border-b">Status</th>
                 <th className="p-3 border-b">User / Team</th>
                 <th className="p-3 border-b">Out</th>
                 <th className="p-3 border-b">In</th>
@@ -234,6 +235,7 @@ const AdminStats = () => {
                 stats.substitutions.map((sub) => (
                   <tr key={sub.id} className="hover:bg-gray-50 border-b">
                     <td className="p-3 text-gray-500 text-sm">{new Date(sub.requested_at).toLocaleString()}</td>
+                    <td className="p-3"> {sub.status === 'pending' ? <span className="text-orange-600 font-semibold">[PENDING]</span> : null}</td>
                     <td className="p-3">
                       <div className="font-medium">{sub.teams?.users?.username || 'Unknown'}</div>
                       <div className="text-xs text-gray-500">{sub.teams?.team_name}</div>

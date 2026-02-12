@@ -232,7 +232,7 @@ export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, ca
         .filter((p) => p.id !== playerToRemove.id)
         .concat(newPlayer);
 
-      // Validate team limits (max 4 players per team)
+      // Validate team limits (max 3 players per team)
       const limits = validateTeamLimit(potentialTeam);
       if (!limits.isValid) {
         setError(limits.errors[0]);
@@ -293,6 +293,7 @@ export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, ca
       setTimeout(() => {
         setSuccess(false);
         onClose();
+        window.location.reload();
       }, 2000);
     } catch (err) {
       console.error("Substitution error:", err);

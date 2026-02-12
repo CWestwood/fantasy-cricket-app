@@ -450,28 +450,27 @@ AS $$
 DECLARE
     v_tournament_id uuid;
     v_team_player_count integer;
-    v_country_count integer;
+    v_team_name_count integer;
     v_max_team_players integer := 15;
-    v_max_country_players integer;
-    v_player_country_id integer;
+    v_max_team_name_players integer;
+    v_player_team_name text;
 BEGIN
     -- Validate inputs
     IF p_team_id IS NULL OR p_player_id IS NULL THEN
         RAISE EXCEPTION 'Team ID and Player ID cannot be null';
     END IF;
 
-    -- Get tournament and country details
+    -- Get tournament and player's represented country (via team_name) details
     SELECT 
         t.tournament_id, 
-        p.country_id,
+        p.team_name,
         ts.max_country
     INTO 
         v_tournament_id, 
-        v_player_country_id,
-        v_max_country_players
+        v_player_team_name,
+        v_max_team_name_players
     FROM teams t
     JOIN squads p ON p.id = p_player_id
-    JOIN countries c ON c.sportsmonk_id = p.country_id
     JOIN tournament_settings ts ON ts.tournament_id = t.tournament_id
     WHERE t.id = p_team_id;
 
@@ -493,15 +492,13 @@ BEGIN
         RAISE EXCEPTION 'Team has reached maximum player limit';
     END IF;
 
-    -- Count players from the same country
-    SELECT COUNT(*) INTO v_country_count
+    -- Count players representing the same country (matched by team_name)
+    SELECT COUNT(*) INTO v_team_name_count
     FROM team_players tp
     JOIN squads p ON p.id = tp.player_id
-    JOIN countries c ON c.sportsmonk_id = p.country_id
-    WHERE tp.team_id = p_team_id AND p.country_id = v_player_country_id;
+    WHERE tp.team_id = p_team_id AND p.team_name = v_player_team_name;
 
-    -- Check country player limit
-    IF v_country_count >= COALESCE(v_max_country_players, 3) THEN
+    IF v_team_name_count >= COALESCE(v_max_team_name_players, 3) THEN
         RAISE EXCEPTION 'Maximum players from this country limit reached';
     END IF;
 
@@ -818,6 +815,7 @@ BEGIN
         WHERE tp.team_id = p_team_id 
         AND tp.is_substituted = false
         GROUP BY p.country_id
+        GROUP BY p.team_name
     ) country_counts;
 
     v_max_country_count := COALESCE(v_max_country_count, 0);
@@ -871,6 +869,7 @@ DECLARE
     v_stage text;
     v_country_count integer;
     v_player_country_id uuid;
+    v_player_team_name text;
 BEGIN
     -- Skip validation if player is being substituted out
     IF TG_OP = 'UPDATE' AND NEW.is_substituted = true THEN
@@ -892,6 +891,7 @@ BEGIN
 
     -- Get the country of the player being added/updated
     SELECT country_id INTO v_player_country_id
+    SELECT team_name INTO v_player_team_name
     FROM squads WHERE id = NEW.player_id;
 
     -- Check if adding this player would violate country limit
@@ -900,6 +900,7 @@ BEGIN
     JOIN squads p ON tp.player_id = p.id
     WHERE tp.team_id = NEW.team_id 
     AND p.country_id = v_player_country_id
+    AND p.team_name = v_player_team_name
     AND tp.is_substituted = false
     AND (TG_OP = 'INSERT' OR tp.id != NEW.id);
 
