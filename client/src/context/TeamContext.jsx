@@ -284,7 +284,9 @@ export const TeamProvider = ({ children }) => {
 
   const validateTeamLimit = (players) => {
     const MAX_PER_team = 3;
-    const teamCounts = players.reduce((acc, player) => {
+    const teamCounts = players
+    .filter(p => !p.is_substituted)
+    .reduce((acc, player) => {
       const team = player.team_name || "Unknown";
       acc[team] = (acc[team] || 0) + 1;
       return acc;
