@@ -224,7 +224,9 @@ export default function TeamDetail() {
     if (!players.length) return;
 
     const fetchLiveScores = async () => {
-      const playerIds = players.map((p) => p.player_id);
+      const playerIds = players
+      .filter(p => !p.is_substituted)
+      .map((p) => p.player_id);
       const { data, error } = await supabase
         .from("live_scoring")
         .select("player_id, batting, bowling, fielding, bonus, total")
@@ -286,7 +288,7 @@ export default function TeamDetail() {
     const baseFielding = (player.scores || []).reduce((sum, s) => sum + (Number(s.fielding_points) || 0), 0);
     const baseBonus = (player.scores || []).reduce((sum, s) => sum + (Number(s.bonus_points) || 0), 0);
 
-    const live = livePlayerScores[player.player_id] || { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 };
+    const live = (!player.is_substituted && livePlayerScores[player.player_id]) ? livePlayerScores[player.player_id] : { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 };
 
     if (!isLive) return { 
       total: baseTotal, batting: baseBatting, bowling: baseBowling, fielding: baseFielding, bonus: baseBonus,

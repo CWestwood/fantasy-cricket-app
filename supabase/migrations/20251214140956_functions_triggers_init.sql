@@ -787,8 +787,8 @@ BEGIN
     WHERE tournament_id = v_tournament_id 
     AND stage = v_stage;
 
-    -- Default to 4 if no setting found
-    v_max_country_limit := COALESCE(v_max_country_limit, 4);
+    -- Default to 3 if no setting found
+    v_max_country_limit := COALESCE(v_max_country_limit, 3);
 
     -- Get team composition counts
     SELECT 
@@ -806,7 +806,7 @@ BEGIN
     WHERE tp.team_id = p_team_id 
     AND tp.is_substituted = false;
 
-    -- Check country limit violation
+    -- Check country limit violation (grouped by represented country via team_name)
     SELECT MAX(country_count) INTO v_max_country_count
     FROM (
         SELECT COUNT(*) as country_count
@@ -814,7 +814,6 @@ BEGIN
         JOIN squads p ON tp.player_id = p.id
         WHERE tp.team_id = p_team_id 
         AND tp.is_substituted = false
-        GROUP BY p.country_id
         GROUP BY p.team_name
     ) country_counts;
 
@@ -868,8 +867,9 @@ DECLARE
     v_tournament_id uuid;
     v_stage text;
     v_country_count integer;
-    v_player_country_id uuid;
     v_player_team_name text;
+    v_active_player_count integer;
+    v_captain_count integer;
 BEGIN
     -- Skip validation if player is being substituted out
     IF TG_OP = 'UPDATE' AND NEW.is_substituted = true THEN
@@ -886,11 +886,10 @@ BEGIN
     WHERE tournament_id = v_tournament_id 
     AND stage = v_stage;
 
-    -- Default to 4 if no setting found
+    -- Default to 3 if no setting found
     v_max_country_limit := COALESCE(v_max_country_limit, 3);
 
-    -- Get the country of the player being added/updated
-    SELECT country_id INTO v_player_country_id
+    -- Get the represented country of the player being added/updated
     SELECT team_name INTO v_player_team_name
     FROM squads WHERE id = NEW.player_id;
 
@@ -899,36 +898,36 @@ BEGIN
     FROM team_players tp
     JOIN squads p ON tp.player_id = p.id
     WHERE tp.team_id = NEW.team_id 
-    AND p.country_id = v_player_country_id
     AND p.team_name = v_player_team_name
     AND tp.is_substituted = false
-    AND (TG_OP = 'INSERT' OR tp.id != NEW.id);
+    AND tp.id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000');
 
-    -- If adding this player would exceed country limit, reject
     IF v_country_count >= v_max_country_limit THEN
         RAISE EXCEPTION 'Cannot add player: Would exceed country limit of % players from same country', v_max_country_limit;
     END IF;
 
-    -- Get validation results for other rules
-    SELECT * INTO validation_result 
-    FROM validate_team_composition(NEW.team_id) 
-    LIMIT 1;
+    -- Check active player count
+    SELECT COUNT(*) INTO v_active_player_count
+    FROM team_players tp
+    WHERE tp.team_id = NEW.team_id
+    AND tp.is_substituted = false
+    AND tp.id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000');
 
-    -- If adding a player would exceed 11, reject
-    IF TG_OP = 'INSERT' AND validation_result.player_count >= 11 THEN
-        RAISE EXCEPTION 'Cannot add player: Team already has 11 players';
+    IF TG_OP = 'INSERT' AND v_active_player_count >= 11 THEN
+        RAISE EXCEPTION 'Cannot add player: Team already has 11 players. Current active: %', v_active_player_count;
     END IF;
 
-    -- If setting captain and there's already one, reject
+    -- Check captain constraint
     IF NEW.is_captain = true THEN
-        IF EXISTS (
-            SELECT 1 FROM team_players 
-            WHERE team_id = NEW.team_id 
-            AND is_captain = true 
-            AND is_substituted = false
-            AND (TG_OP = 'INSERT' OR id != NEW.id)
-        ) THEN
-            RAISE EXCEPTION 'Team can only have one captain';
+        SELECT COUNT(*) INTO v_captain_count
+        FROM team_players tp
+        WHERE tp.team_id = NEW.team_id
+        AND tp.is_captain = true
+        AND tp.is_substituted = false
+        AND tp.id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000');
+
+        IF v_captain_count > 0 THEN
+            RAISE EXCEPTION 'Team can only have one active captain';
         END IF;
     END IF;
 
@@ -941,6 +940,7 @@ CREATE TRIGGER validate_team_composition_trigger
     BEFORE INSERT OR UPDATE ON team_players
     FOR EACH ROW
     EXECUTE FUNCTION check_team_composition();
+
 
 -- Function to check if team is complete and valid for tournament play
 CREATE OR REPLACE FUNCTION is_team_ready_for_play(p_team_id uuid)
@@ -1231,9 +1231,9 @@ AS $$
         FROM team_players tp
         JOIN teams t ON t.id = tp.team_id
         JOIN live_scoring s ON s.player_id = tp.player_id
-        JOIN matches m ON m.id = s.match_id
-        WHERE s.match_id = p_match_id
-          AND (tp.removed_at IS NULL OR tp.removed_at > m.match_time)
+        AND s.match_id = p_match_id
+        WHERE 
+            COALESCE(tp.is_substituted, false) = false
     ),
     team_totals AS (
         SELECT
