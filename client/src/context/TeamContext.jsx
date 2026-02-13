@@ -244,7 +244,9 @@ export const TeamProvider = ({ children }) => {
 };
 
   const validateTeamComposition = (players) => {
-    const composition = players.reduce((acc, player) => {
+    const composition = players
+    .filter(p => !p.is_substituted)
+    .reduce((acc, player) => {
       const roleKey = (player.role || "").toLowerCase();
       acc[roleKey] = (acc[roleKey] || 0) + 1;
       return acc;
