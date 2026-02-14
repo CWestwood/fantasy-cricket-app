@@ -20,6 +20,7 @@ import TournamentRules from './pages/TournamentRules';
 import Footer from "./components/ui/Footer";
 import { Analytics } from "@vercel/analytics/react";
 import SubstitutionLog from "./pages/Substitutions";
+import TournamentTracker from "./pages/TournamentTracker";
 
 const Layout = ({ children }) => (
   <div className="flex flex-col min-h-screen bg-dark-500">
@@ -228,6 +229,19 @@ function AppContent() {
             session ? (
               <Layout>
                 <SubstitutionLog />
+              </Layout>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/tracker"
+          element={
+            session ? (
+              <Layout>
+                <TournamentTracker />
               </Layout>
             ) : (
               <Navigate to="/login" replace />

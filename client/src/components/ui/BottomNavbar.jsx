@@ -63,7 +63,8 @@ const BottomNavbar = ({ onNavigate }) => {
     ? [] // nothing extra during registration
     : [
         { label: "Tournament Rules", route: "/tournament-rules" },
-        {label: "Substitution Log", route: "/substitutionlog" }
+        { label: "Substitution Log", route: "/substitutionlog" },
+        { label: "Tournament Tracker", route: "/tracker" }
 
       ];
 
