@@ -166,22 +166,32 @@ export default function MyTeamPage() {
   }, [teamId, tournamentId]);
 
   const getDisplayScore = (playerId) => {
+    const isCaptain = captain?.id === playerId;
+    const multiplier = isCaptain ? 2 : 1;
+
     const base = playerScores[playerId] || { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 };
     const live = livePlayerScores[playerId] || { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 };
 
-    if (!isLive) return { ...base, delta: 0, deltaBatting: 0, deltaBowling: 0, deltaFielding: 0, deltaBonus: 0 };
+    if (!isLive) return { 
+      batting: (base.batting || 0) * multiplier,
+      bowling: (base.bowling || 0) * multiplier,
+      fielding: (base.fielding || 0) * multiplier,
+      bonus: (base.bonus || 0) * multiplier,
+      total: (base.total || 0) * multiplier,
+      delta: 0, deltaBatting: 0, deltaBowling: 0, deltaFielding: 0, deltaBonus: 0 
+    };
 
     return {
-      batting: (base.batting || 0) + live.batting,
-      bowling: (base.bowling || 0) + live.bowling,
-      fielding: (base.fielding || 0) + live.fielding,
-      bonus: (base.bonus || 0) + live.bonus,
-      total: (base.total || 0) + live.total,
-      delta: live.total,
-      deltaBatting: live.batting,
-      deltaBowling: live.bowling,
-      deltaFielding: live.fielding,
-      deltaBonus: live.bonus
+      batting: ((base.batting || 0) + live.batting) * multiplier,
+      bowling: ((base.bowling || 0) + live.bowling) * multiplier,
+      fielding: ((base.fielding || 0) + live.fielding) * multiplier,
+      bonus: ((base.bonus || 0) + live.bonus) * multiplier,
+      total: ((base.total || 0) + live.total) * multiplier,
+      delta: live.total * multiplier,
+      deltaBatting: live.batting * multiplier,
+      deltaBowling: live.bowling * multiplier,
+      deltaFielding: live.fielding * multiplier,
+      deltaBonus: live.bonus * multiplier
     };
   };
 

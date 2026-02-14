@@ -143,13 +143,6 @@ export default function TournamentTracker() {
   const selectedTeamName = allTeams.find(t => t.id === selectedTeamId)?.name || "Team";
   const teamColor = TEAM_HEX_COLORS[selectedTeamName] || "#3b82f6";
 
-  const getOrdinal = (n) => {
-    if (!n) return "-";
-    const s = ["th", "st", "nd", "rd"];
-    const v = n % 100;
-    return n + (s[(v - 20) % 10] || s[v] || s[0]);
-  };
-
   if (loading) return <div className="min-h-screen bg-dark-500 flex items-center justify-center text-white">Loading Tracker...</div>;
 
   return (
@@ -258,7 +251,7 @@ export default function TournamentTracker() {
                     <tr className="text-gray-400 border-b border-gray-700">
                       <th className="pb-3 px-2">Match</th>
                       <th className="pb-3 px-2">Date</th>
-                      <th className="pb-3 px-2 text-right">Points (Rank)</th>
+                      <th className="pb-3 px-2 text-right">Points</th>
                       <th className="pb-3 px-2 text-right">Total Pts</th>
                     </tr>
                   </thead>
@@ -269,7 +262,6 @@ export default function TournamentTracker() {
                         <td className="py-3 px-2 text-gray-400">{row.name}</td>
                         <td className="py-3 px-2 text-right">
                           <span className="text-green-400 font-bold">{row.matchPoints}</span>
-                          <span className="text-gray-400 text-xs ml-2">({getOrdinal(row.rank)})</span>
                         </td>
                         <td className="py-3 px-2 text-right font-bold text-white">{row.totalPoints}</td>
                       </tr>

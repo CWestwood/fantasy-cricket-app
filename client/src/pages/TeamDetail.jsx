@@ -282,11 +282,13 @@ export default function TeamDetail() {
   };
 
   const getPlayerDisplayScore = (player) => {
-    const baseTotal = (player.scores || []).reduce((sum, s) => sum + (Number(s.total_points) || 0), 0);
-    const baseBatting = (player.scores || []).reduce((sum, s) => sum + (Number(s.batting_points) || 0), 0);
-    const baseBowling = (player.scores || []).reduce((sum, s) => sum + (Number(s.bowling_points) || 0), 0);
-    const baseFielding = (player.scores || []).reduce((sum, s) => sum + (Number(s.fielding_points) || 0), 0);
-    const baseBonus = (player.scores || []).reduce((sum, s) => sum + (Number(s.bonus_points) || 0), 0);
+    const multiplier = player.is_captain ? 2 : 1;
+
+    const baseTotal = (player.scores || []).reduce((sum, s) => sum + (Number(s.total_points) || 0), 0) * multiplier;
+    const baseBatting = (player.scores || []).reduce((sum, s) => sum + (Number(s.batting_points) || 0), 0) * multiplier;
+    const baseBowling = (player.scores || []).reduce((sum, s) => sum + (Number(s.bowling_points) || 0), 0) * multiplier;
+    const baseFielding = (player.scores || []).reduce((sum, s) => sum + (Number(s.fielding_points) || 0), 0) * multiplier;
+    const baseBonus = (player.scores || []).reduce((sum, s) => sum + (Number(s.bonus_points) || 0), 0) * multiplier;
 
     const live = (!player.is_substituted && livePlayerScores[player.player_id]) ? livePlayerScores[player.player_id] : { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 };
 
@@ -296,16 +298,16 @@ export default function TeamDetail() {
     };
 
     return {
-      total: baseTotal + live.total,
-      batting: baseBatting + live.batting,
-      bowling: baseBowling + live.bowling,
-      fielding: baseFielding + live.fielding,
-      bonus: baseBonus + live.bonus,
-      delta: live.total,
-      deltaBatting: live.batting,
-      deltaBowling: live.bowling,
-      deltaFielding: live.fielding,
-      deltaBonus: live.bonus
+      total: baseTotal + (live.total * multiplier),
+      batting: baseBatting + (live.batting * multiplier),
+      bowling: baseBowling + (live.bowling * multiplier),
+      fielding: baseFielding + (live.fielding * multiplier),
+      bonus: baseBonus + (live.bonus * multiplier),
+      delta: live.total * multiplier,
+      deltaBatting: live.batting * multiplier,
+      deltaBowling: live.bowling * multiplier,
+      deltaFielding: live.fielding * multiplier,
+      deltaBonus: live.bonus * multiplier
     };
   };
 
