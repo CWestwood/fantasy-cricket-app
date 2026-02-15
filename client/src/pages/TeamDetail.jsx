@@ -282,13 +282,12 @@ export default function TeamDetail() {
   };
 
   const getPlayerDisplayScore = (player) => {
-    const multiplier = player.is_captain ? 2 : 1;
 
-    const baseTotal = (player.scores || []).reduce((sum, s) => sum + (Number(s.total_points) || 0), 0) * multiplier;
-    const baseBatting = (player.scores || []).reduce((sum, s) => sum + (Number(s.batting_points) || 0), 0) * multiplier;
-    const baseBowling = (player.scores || []).reduce((sum, s) => sum + (Number(s.bowling_points) || 0), 0) * multiplier;
-    const baseFielding = (player.scores || []).reduce((sum, s) => sum + (Number(s.fielding_points) || 0), 0) * multiplier;
-    const baseBonus = (player.scores || []).reduce((sum, s) => sum + (Number(s.bonus_points) || 0), 0) * multiplier;
+    const baseTotal = (player.scores || []).reduce((sum, s) => sum + (Number(s.total_points) || 0), 0);
+    const baseBatting = (player.scores || []).reduce((sum, s) => sum + (Number(s.batting_points) || 0), 0);
+    const baseBowling = (player.scores || []).reduce((sum, s) => sum + (Number(s.bowling_points) || 0), 0);
+    const baseFielding = (player.scores || []).reduce((sum, s) => sum + (Number(s.fielding_points) || 0), 0);
+    const baseBonus = (player.scores || []).reduce((sum, s) => sum + (Number(s.bonus_points) || 0), 0);
 
     const live = (!player.is_substituted && livePlayerScores[player.player_id]) ? livePlayerScores[player.player_id] : { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 };
 
