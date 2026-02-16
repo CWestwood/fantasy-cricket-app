@@ -173,20 +173,20 @@ export default function MyTeamPage() {
     const live = livePlayerScores[playerId] || { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 };
 
     if (!isLive) return { 
-      batting: (base.batting || 0) * multiplier,
-      bowling: (base.bowling || 0) * multiplier,
-      fielding: (base.fielding || 0) * multiplier,
-      bonus: (base.bonus || 0) * multiplier,
-      total: (base.total || 0) * multiplier,
+      batting: (base.batting || 0),
+      bowling: (base.bowling || 0),
+      fielding: (base.fielding || 0),
+      bonus: (base.bonus || 0),
+      total: (base.total || 0),
       delta: 0, deltaBatting: 0, deltaBowling: 0, deltaFielding: 0, deltaBonus: 0 
     };
 
     return {
-      batting: ((base.batting || 0) + live.batting) * multiplier,
-      bowling: ((base.bowling || 0) + live.bowling) * multiplier,
-      fielding: ((base.fielding || 0) + live.fielding) * multiplier,
-      bonus: ((base.bonus || 0) + live.bonus) * multiplier,
-      total: ((base.total || 0) + live.total) * multiplier,
+      batting: (base.batting || 0) + (live.batting * multiplier),
+      bowling: (base.bowling || 0) + (live.bowling* multiplier),
+      fielding: (base.fielding || 0) +(live.fielding * multiplier),
+      bonus: (base.bonus || 0) + (live.bonus * multiplier),
+      total: (base.total || 0) + (live.total * multiplier),
       delta: live.total * multiplier,
       deltaBatting: live.batting * multiplier,
       deltaBowling: live.bowling * multiplier,
