@@ -220,9 +220,6 @@ export const TeamProvider = ({ children }) => {
         .eq("is_locked", false)
         .single()
       
-      console.log("loadUserTeam: picking stage ->", pickingstage);
-
-
       const { data: settingsData } = await supabase
         .from("tournament_settings")
         .select("max_country, max_subs")
@@ -230,9 +227,7 @@ export const TeamProvider = ({ children }) => {
         .eq("tournament_id", tournamentId)
         .maybeSingle();
 
-      console.log("loadUserTeam: settingsData ->", settingsData);
-
-      const maxSubs = settingsData?.max_subs ?? 3;
+      const maxSubs =  3;
 
       // Publish to state so consumers (substitution UI etc.) can read it
       if (settingsData) setStageSettings(settingsData);
@@ -255,12 +250,13 @@ export const TeamProvider = ({ children }) => {
       try {
         const { data: priorTeam } = await supabase
           .from("teams")
-          .select("team_name")
+          .select("team_name", "subs_used")
           .eq("user_id", user.id)
           .eq("tournament_id", tournamentId)
           .limit(1)
           .maybeSingle();
 
+        
         if (priorTeam?.team_name) {
           setIsNameLocked(true);
           setTeamName((prev) => prev || priorTeam.team_name);
@@ -279,7 +275,6 @@ export const TeamProvider = ({ children }) => {
       ) {
         setTeamId(null);
         setIsTeamLocked(false);
-        setSubstitutionsRemaining(maxSubs);
 
         const draft = readCache(tournamentId, activeStage.id);
         if (draft) {
@@ -308,7 +303,7 @@ export const TeamProvider = ({ children }) => {
           .eq("tournament_id", tournamentId)
           .eq("stage_id", activeStage.id)
           .maybeSingle();
-
+        
         if (teamError && teamError.code !== "PGRST116") throw teamError;
         
         if (teamData) {
@@ -317,8 +312,6 @@ export const TeamProvider = ({ children }) => {
           setTeamId(teamData.id);
           setTeamName(teamData.team_name);
           setTeamStageId(activeStage.id); 
-          setSubstitutionsRemaining(Math.max(0, maxSubs - (teamData.subs_used || 0)));
-          setSubsAllocated(maxSubs);
           setIsTeamLocked(Boolean(teamData.is_locked));
           
           if (pickableStage && viewStage && pickableStage.id !== viewStage.id) {
@@ -329,7 +322,8 @@ export const TeamProvider = ({ children }) => {
               .eq("tournament_id", tournamentId)
               .eq("stage_id", viewStage.id)
               .maybeSingle();
-
+            
+            
             if (viewTeamData) {
               setSubstitutionsRemaining(Math.max(0, maxSubs - (viewTeamData.subs_used || 0)));
               setSubsAllocated(maxSubs);
@@ -499,8 +493,6 @@ export const TeamProvider = ({ children }) => {
       team_name: p.team_name ?? p.team ?? null,
     }));
 
-    const subsUsed = (subsAllocated ?? 3) - substitutionsRemaining;
-
     const { data, error } = await supabase.rpc("submit_team", {
       p_tournament_id: tournamentId,
       p_stage: submitStage.stage_name,
@@ -508,7 +500,6 @@ export const TeamProvider = ({ children }) => {
       p_team_name: teamName,
       p_players: playersJson,
       p_captain_id: captain.id,
-      p_subs_used: subsUsed,
     });
     if (error) throw error;
 
@@ -553,7 +544,6 @@ export const TeamProvider = ({ children }) => {
   };
 
   const validateTeamLimit = (players) => {
-    console.log(stageSettings);
     const MAX_PER_TEAM = stageSettings?.max_country || 3;
     const teamCounts = players
       .filter((p) => !p.is_substituted)
