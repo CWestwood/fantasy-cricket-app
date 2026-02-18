@@ -757,3 +757,39 @@ create index IF not exists idx_api_sync_log_sync_run_id on public.api_sync_log u
 create index IF not exists idx_api_sync_log_created_at on public.api_sync_log using btree (created_at desc) TABLESPACE pg_default;
 create index IF not exists idx_api_sync_log_level on public.api_sync_log using btree (level) TABLESPACE pg_default;
 create index IF not exists idx_api_sync_log_metadata on public.api_sync_log using gin (metadata) TABLESPACE pg_default;
+
+create table tournament_stages (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  tournament_id uuid null,
+  stage_name text null,
+  stage_number int,
+  starts_at timestamp with time zone null,
+  ends_at timestamp with time zone null,
+  is_active boolean null default false,
+  created_at timestamp with time zone null default now(),
+  constraint tournament_stages_pkey primary key (id),
+  constraint tournament_stages_tournament_id_fkey foreign KEY (tournament_id) references tournaments(id) on update CASCADE on delete CASCADE
+) TABLESPACE pg_default;
+
+create table stage_subs_quotas (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  tournament_id uuid null,
+  stage_id uuid null,
+  stage_name text null,
+  user_id uuid null,
+  subs_allocated int null default 0,
+  subs_used int null default 0,
+  created_at timestamp with time zone null default now(),
+  constraint stage_subs_quotas_user_id_fkey foreign KEY (user_id) references users(id),
+  constraint stage_subs_quotas_stage_id_fkey foreign KEY (stage_id) references tournament_stages(id),
+  constraint stage_subs_quotas_pkey primary key (id),
+  constraint stage_subs_quotas_tournament_id_fkey foreign KEY (tournament_id) references tournaments(id) on update CASCADE on delete CASCADE
+)
+
+CREATE TABLE stage_eligible_teams (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  stage_id UUID NOT NULL REFERENCES tournament_stages(id),
+  team_name TEXT NOT NULL, -- matches squads.team_name
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (stage_id, team_name)
+);

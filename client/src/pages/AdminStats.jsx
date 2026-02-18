@@ -61,6 +61,7 @@ const AdminStats = () => {
           .select(`
             id,
             team_name,
+            stage_id,
             users (username),
             team_players (
               is_captain,
@@ -83,6 +84,7 @@ const AdminStats = () => {
             id,
             requested_at,
             status,
+            stage_id,
             teams (team_name, users (username)),
             player_out:squads!player_out_id (name, role),
             player_in:squads!player_in_id (name, role)
@@ -91,6 +93,19 @@ const AdminStats = () => {
           .order('requested_at', { ascending: false });
 
         if (subsError) console.error('Error fetching substitutions:', subsError);
+
+        // 4.5. Fetch stage names for lookup
+        const { data: stagesData } = await supabase
+          .from('tournament_stages')
+          .select('id, stage_name')
+          .eq('tournament_id', tournament.id);
+        
+        const stageIdToName = {};
+        if (stagesData) {
+          stagesData.forEach(s => {
+            stageIdToName[s.id] = s.stage_name;
+          });
+        }
 
         // 5. Process Stats (Logic ported from script)
         const playerPicks = {};
@@ -102,6 +117,7 @@ const AdminStats = () => {
           const username = team.users?.username || 'Unknown User';
           const userTeamName = team.team_name || 'Unnamed Team';
           
+          const stage = team.stage_id ? stageIdToName[team.stage_id] : '-';
           const squadNames = [];
           let captainName = 'None';
 
@@ -131,16 +147,23 @@ const AdminStats = () => {
             username,
             userTeamName,
             captain: captainName,
+            stageName: stage,
             players: squadNames.sort().join(', ')
           });
         });
+
+        // Map substitutions to include stage names
+        const substitutionsWithStageNames = (subsData || []).map(sub => ({
+          ...sub,
+          stageName: sub.stage_id ? stageIdToName[sub.stage_id] : '-'
+        }));
 
         setStats({
           players: Object.entries(playerPicks).sort((a, b) => b[1] - a[1]),
           captains: Object.entries(captainPicks).sort((a, b) => b[1] - a[1]),
           teams: Object.entries(realTeamPicks).sort((a, b) => b[1] - a[1]),
           userTeams: userTeamsList,
-          substitutions: subsData || []
+          substitutions: substitutionsWithStageNames
         });
 
       } catch (error) {
@@ -223,6 +246,7 @@ const AdminStats = () => {
               <tr>
                 <th className="p-3 border-b">Time</th>
                 <th className="p-3 border-b">Status</th>
+                <th className="p-3 border-b">Stage</th>
                 <th className="p-3 border-b">User / Team</th>
                 <th className="p-3 border-b">Out</th>
                 <th className="p-3 border-b">In</th>
@@ -236,6 +260,7 @@ const AdminStats = () => {
                   <tr key={sub.id} className="hover:bg-gray-50 border-b">
                     <td className="p-3 text-gray-500 text-sm">{new Date(sub.requested_at).toLocaleString()}</td>
                     <td className="p-3"> {sub.status === 'pending' ? <span className="text-orange-600 font-semibold">[PENDING]</span> : null}</td>
+                    <td className="p-3 text-sm text-gray-600">{sub.stageName}</td>
                     <td className="p-3">
                       <div className="font-medium">{sub.teams?.users?.username || 'Unknown'}</div>
                       <div className="text-xs text-gray-500">{sub.teams?.team_name}</div>
@@ -260,13 +285,14 @@ const AdminStats = () => {
         <div className="overflow-auto border rounded">
           <table className="w-full text-left border-collapse text-sm">
             <thead className="bg-gray-100">
-              <tr><th className="p-3 border-b">Username</th><th className="p-3 border-b">Team Name</th><th className="p-3 border-b">Captain</th><th className="p-3 border-b">Squad</th></tr>
+              <tr><th className="p-3 border-b">Username</th><th className="p-3 border-b">Team Name</th><th className="p-3 border-b">Stage</th><th className="p-3 border-b">Captain</th><th className="p-3 border-b">Squad</th></tr>
             </thead>
             <tbody>
               {stats.userTeams.map((t, i) => (
                 <tr key={i} className="hover:bg-gray-50 border-b">
                   <td className="p-3 font-medium">{t.username}</td>
                   <td className="p-3">{t.userTeamName}</td>
+                  <td className="p-3 text-gray-500">{t.stageName}</td>
                   <td className="p-3 text-orange-700 font-medium">{t.captain}</td>
                   <td className="p-3 text-gray-600">{t.players}</td>
                 </tr>

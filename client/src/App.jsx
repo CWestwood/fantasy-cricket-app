@@ -1,5 +1,5 @@
 import "./index.css";
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import Login from "./pages/LoginPage";
 import TeamSelection from "./pages/TeamSelection";
 import Landing from "./pages/Landing";
@@ -37,55 +37,31 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [session, setSession] = useState(null);
-  const location = useLocation();
-  const { isTeamLocked, teamId, loading: teamLoading, activityState } = useTeam();
+  const { teamId, loading: teamLoading, canPick, user, activeStage } = useTeam();
+  const navigate = useNavigate();
 
-  // This effect handles the initial load and auth state changes
   useEffect(() => {
     let authListener = null;
-
     const initializeAuth = async () => {
       try {
-        // Verify Supabase is configured
-        if (!supabase) {
-          throw new Error("Supabase client is not configured");
-        }
-
-        // Check initial session
+        if (!supabase) throw new Error("Supabase client is not configured");
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error("Error getting session:", sessionError);
-          throw sessionError;
-        }
-
+        if (sessionError) throw sessionError;
         setSession(sessionData?.session || null);
-
-        // Set up auth state listener for subsequent changes
         const { data } = supabase.auth.onAuthStateChange((event, newSession) => {
           setSession(newSession || null);
         });
-
         authListener = data;
         setIsLoading(false);
       } catch (err) {
-        console.error("Auth initialization error:", err);
         setError(err.message || "Failed to initialize authentication");
         setIsLoading(false);
       }
     };
-
     initializeAuth();
-
-    // Cleanup function
-    return () => {
-      if (authListener?.subscription) {
-        authListener.subscription.unsubscribe();
-      }
-    };
+    return () => authListener?.subscription?.unsubscribe();
   }, []);
 
-  // Show loading state
   if (isLoading || (session && teamLoading)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -97,19 +73,11 @@ function AppContent() {
     );
   }
 
-  // Show error state
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
         <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
-          <div className="text-red-600 mb-4">
-            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2 text-center">
-            Something went wrong
-          </h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-2 text-center">Something went wrong</h2>
           <p className="text-gray-600 mb-4 text-center">{error}</p>
           <button
             onClick={() => window.location.reload()}
@@ -122,23 +90,17 @@ function AppContent() {
     );
   }
 
+  const defaultLoggedInRoute = canPick
+    ? "/team"
+    : teamId
+    ? "/my-team"
+    : "/leaderboard";
+
   return (
     <Routes>
       <Route
         path="/"
-        element={
-          session ? (
-            teamId ? (
-              <Navigate to="/my-team" replace />
-            ) : activityState === "live" ? (
-              <Navigate to="/leaderboard" replace />
-            ) : (
-              <Navigate to="/team" replace />
-            )
-          ) : (
-            <Landing />
-          )
-        }
+        element={session ? <Navigate to={defaultLoggedInRoute} replace /> : <Landing />}
       />
       <Route
         path="/login"
@@ -148,13 +110,23 @@ function AppContent() {
         path="/team"
         element={
           session ? (
-            isTeamLocked ? (
-              <Navigate to="/my-team" replace />
-            ) : activityState === "live" && !teamId ? (
-              <Navigate to="/leaderboard" replace />
+            canPick ? (
+              <Layout><TeamSelection onNavigate={() => {}} /></Layout>
             ) : (
+              // User clicked button but can't pick — show error card instead of redirect
               <Layout>
-                <TeamSelection onNavigate={() => {}} />
+                <div className="flex items-center justify-center min-h-screen">
+                  <div className="bg-red-900/30 border border-red-500 rounded-lg p-6 max-w-md">
+                    <h2 className="text-xl font-bold text-red-400 mb-2">Selection Closed</h2>
+                    <p className="text-gray-300 mb-4">Team selection is currently closed for this stage.</p>
+                    <div className="mb-4 p-3 bg-black/40 rounded text-xs font-mono text-gray-400 space-y-1 text-left">
+                      <p><span className="text-gray-500">Status:</span> {activeStage?.reason}</p>
+                    </div>
+                    <button onClick={() => navigate("/my-team")} className="w-full px-4 py-2 bg-primary-500 text-black rounded-lg font-semibold">
+                      Go to My Team
+                    </button>
+                  </div>
+                </div>
               </Layout>
             )
           ) : (
@@ -162,142 +134,18 @@ function AppContent() {
           )
         }
       />
-        <Route
-          path="/profile"
-          element={
-            session ? (
-              <Layout>
-                <ProfilePage />
-              </Layout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/my-team"
-          element={
-            session ? (
-              <Layout>
-                <MyTeamPage onNavigate={() => {}} />
-              </Layout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/leaderboard"
-          element={
-            session ? (
-              <Layout>
-                <LeaderboardPage onNavigate={() => {}} />
-              </Layout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/schedule"
-          element={
-            session ? (
-              <Layout>
-                <Schedule />
-              </Layout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/tournament-rules"
-          element={
-            session ? (
-              <Layout>
-                <TournamentRules />
-              </Layout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-
-        <Route
-          path="/substitutionlog"
-          element={
-            session ? (
-              <Layout>
-                <SubstitutionLog />
-              </Layout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-
-        <Route
-          path="/tracker"
-          element={
-            session ? (
-              <Layout>
-                <TournamentTracker />
-              </Layout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-
-        <Route
-          path="/team/:teamId"
-          element={
-            session ? (
-              <Layout>
-                <TeamDetail />
-              </Layout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/player-stats"
-          element={
-            session ? (
-              <Layout>
-                <PlayerStats />
-              </Layout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/player/:playerId"
-          element={
-            session ? (
-              <Layout>
-                <PlayerProfile />
-              </Layout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/admin/stats"
-          element={
-            session ? (
-              <Layout>
-                <AdminStats />
-              </Layout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-      </Routes>
+      <Route path="/profile" element={session ? <Layout><ProfilePage /></Layout> : <Navigate to="/login" replace />} />
+      <Route path="/my-team" element={session ? <Layout><MyTeamPage onNavigate={() => {}} /></Layout> : <Navigate to="/login" replace />} />
+      <Route path="/leaderboard" element={session ? <Layout><LeaderboardPage onNavigate={() => {}} /></Layout> : <Navigate to="/login" replace />} />
+      <Route path="/schedule" element={session ? <Layout><Schedule /></Layout> : <Navigate to="/login" replace />} />
+      <Route path="/tournament-rules" element={session ? <Layout><TournamentRules /></Layout> : <Navigate to="/login" replace />} />
+      <Route path="/substitutionlog" element={session ? <Layout><SubstitutionLog /></Layout> : <Navigate to="/login" replace />} />
+      <Route path="/tracker" element={session ? <Layout><TournamentTracker /></Layout> : <Navigate to="/login" replace />} />
+      <Route path="/team/:teamId" element={session ? <Layout><TeamDetail /></Layout> : <Navigate to="/login" replace />} />
+      <Route path="/player-stats" element={session ? <Layout><PlayerStats /></Layout> : <Navigate to="/login" replace />} />
+      <Route path="/player/:playerId" element={session ? <Layout><PlayerProfile /></Layout> : <Navigate to="/login" replace />} />
+      <Route path="/admin/stats" element={session ? <Layout><AdminStats /></Layout> : <Navigate to="/login" replace />} />
+    </Routes>
   );
 }
 

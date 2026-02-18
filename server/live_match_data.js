@@ -5,7 +5,7 @@ async function liveMatchData() {
     // Initialize Supabase client
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const cricketApiKey = process.env.CRICKET_API_KEY;
+    const cricketApiKey = process.env.SPORTSMONK_API_KEY;
 
     if (!supabaseUrl || !supabaseKey || !cricketApiKey) {
       throw new Error('Missing required environment variables');

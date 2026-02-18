@@ -115,9 +115,9 @@ AS $$
 $$;
 
 CREATE OR REPLACE FUNCTION public.submit_team(
-  p_username TEXT,
   p_tournament_id UUID,
   p_stage TEXT,
+  p_stage_id UUID,
   p_team_name TEXT,
   p_players JSONB,
   p_captain_id UUID,
@@ -133,15 +133,16 @@ DECLARE
   current_player_id UUID;
 BEGIN
   -- Step 1: Upsert the team details into the 'teams' table
-  INSERT INTO public.teams (user_id, tournament_id, stage, team_name, subs_used)
+  INSERT INTO public.teams (user_id, tournament_id, stage, stage_id, team_name, subs_used)
   VALUES (
     auth.uid(),
     p_tournament_id,
     p_stage,
+    p_stage_id,
     p_team_name,
     p_subs_used
   )
-  ON CONFLICT (user_id, tournament_id, stage)
+  ON CONFLICT (user_id, tournament_id, stage_id)
   DO UPDATE SET
     team_name = EXCLUDED.team_name,
     subs_used = EXCLUDED.subs_used
@@ -172,6 +173,7 @@ CREATE OR REPLACE FUNCTION public.get_available_players(
   p_tournament_id uuid,
   p_user_id uuid,
   p_stage text DEFAULT 'group',
+  p_stage_id uuid DEFAULT NULL,
   p_search text DEFAULT NULL,
   p_roles text[] DEFAULT NULL,
   p_countries text[] DEFAULT NULL,
@@ -196,7 +198,9 @@ BEGIN
   WITH picks AS (
     SELECT tp.player_id, COUNT(*)::int AS cnt
     FROM team_players tp
-    JOIN teams t ON tp.team_id = t.id AND t.tournament_id = p_tournament_id AND t.stage = p_stage
+    JOIN teams t ON tp.team_id = t.id 
+        AND t.tournament_id = p_tournament_id 
+        AND (p_stage_id IS NULL OR t.stage_id = p_stage_id)
     GROUP BY tp.player_id
   )
   SELECT
@@ -214,7 +218,7 @@ BEGIN
       WHERE tp2.player_id = p.id
         AND t2.user_id = p_user_id
         AND t2.tournament_id = p_tournament_id
-        AND t2.stage = p_stage
+        AND (p_stage_id IS NULL OR t2.stage_id = p_stage_id)
     ) AS selected_by_user
   FROM squads p
   LEFT JOIN countries c ON c.sportsmonk_id = p.country_id
@@ -234,7 +238,7 @@ END;
 $$;
 
 -- Grant execute to authenticated users (if using RLS and authenticated role)
-GRANT EXECUTE ON FUNCTION public.get_available_players(uuid, uuid, text, text, text[], text[], int, int) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_available_players(uuid, uuid, text, uuid, text, text[], text[], int, int) TO authenticated;
 
 CREATE OR REPLACE FUNCTION calculate_all_team_scores_for_match(p_match_id uuid)
 RETURNS TABLE (
@@ -775,17 +779,17 @@ DECLARE
     v_error_message text := '';
     v_is_valid boolean := true;
     v_tournament_id uuid;
-    v_stage text;
+    v_stage_id uuid;
 BEGIN
     -- Get team's tournament and stage info
-    SELECT tournament_id, stage INTO v_tournament_id, v_stage
+    SELECT tournament_id, stage_id INTO v_tournament_id, v_stage_id
     FROM teams WHERE id = p_team_id;
 
     -- Get max_country setting for this tournament/stage
     SELECT max_country INTO v_max_country_limit
     FROM tournament_settings 
     WHERE tournament_id = v_tournament_id 
-    AND stage = v_stage;
+    AND stage_id = v_stage_id;
 
     -- Default to 3 if no setting found
     v_max_country_limit := COALESCE(v_max_country_limit, 3);
@@ -865,7 +869,7 @@ DECLARE
     validation_result RECORD;
     v_max_country_limit integer;
     v_tournament_id uuid;
-    v_stage text;
+    v_stage_id uuid;
     v_country_count integer;
     v_player_team_name text;
     v_active_player_count integer;
@@ -877,14 +881,14 @@ BEGIN
     END IF;
 
     -- Get team's tournament and stage info
-    SELECT tournament_id, stage INTO v_tournament_id, v_stage
+    SELECT tournament_id, stage_id INTO v_tournament_id, v_stage_id
     FROM teams WHERE id = NEW.team_id;
 
     -- Get max_country setting
     SELECT max_country INTO v_max_country_limit
     FROM tournament_settings 
     WHERE tournament_id = v_tournament_id 
-    AND stage = v_stage;
+    AND stage_id = v_stage_id;
 
     -- Default to 3 if no setting found
     v_max_country_limit := COALESCE(v_max_country_limit, 3);

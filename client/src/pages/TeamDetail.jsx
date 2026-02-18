@@ -63,7 +63,7 @@ export default function TeamDetail() {
       // Fetch team info - filter by both id and tournament_id to get the right team
       const teamRes = await supabase
         .from("teams")
-        .select("id, team_name, user_id, tournament_id")
+        .select("id, team_name, user_id, tournament_id, stage_id")
         .eq("id", teamId)
         .eq("tournament_id", tournamentId)
         .single();
@@ -76,7 +76,20 @@ export default function TeamDetail() {
         return;
       }
 
-      setTeam(teamRes.data);
+      // Fetch stage name if stage_id exists
+      let stageName = null;
+      if (teamRes.data.stage_id) {
+        const { data: stageData } = await supabase
+          .from("tournament_stages")
+          .select("stage_name")
+          .eq("id", teamRes.data.stage_id)
+          .single();
+        if (stageData) {
+          stageName = stageData.stage_name;
+        }
+      }
+
+      setTeam({ ...teamRes.data, stageName });
 
       // Fetch username from users table
       const { data: userData } = await supabase
@@ -283,8 +296,13 @@ export default function TeamDetail() {
 
   const getPlayerDisplayScore = (player) => {
     const multiplier = player.is_captain ? 2 : 1;
+<<<<<<< Updated upstream
     
     const baseTotal = (player.scores || []).reduce((sum, s) => sum + (Number(s.total_points) || 0), 0);
+=======
+
+    const baseTotal = (player.scores || []).reduce((sum, s) => sum + (Number(s.total_points) || 0), 0) ;
+>>>>>>> Stashed changes
     const baseBatting = (player.scores || []).reduce((sum, s) => sum + (Number(s.batting_points) || 0), 0);
     const baseBowling = (player.scores || []).reduce((sum, s) => sum + (Number(s.bowling_points) || 0), 0);
     const baseFielding = (player.scores || []).reduce((sum, s) => sum + (Number(s.fielding_points) || 0), 0);
@@ -366,7 +384,14 @@ export default function TeamDetail() {
             {/* Team Info & Toggle */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-primary-500">{team?.team_name || "Team"}</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-primary-500">
+                  {team?.team_name || "Team"}
+                  {team?.stageName && (
+                    <span className="ml-3 text-sm font-normal text-gray-400 bg-dark-600 px-2 py-1 rounded-full border border-gray-600 align-middle">
+                      {team.stageName}
+                    </span>
+                  )}
+                </h1>
                 <p className="text-l text-gray-300 mt-1">
                  {username || "Unknown"}
                 </p>

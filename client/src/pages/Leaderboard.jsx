@@ -4,8 +4,13 @@ import { supabase } from "../utils/supabaseClient";
 import { useTeam } from "../context/TeamContext";
 
 export default function Leaderboard() {
-  const { tournamentId } = useTeam();
+  // Only tournamentId and viewStage come from context.
+  // viewStage is used only to seed the initial stage selector.
+  // activeStage is intentionally NOT used here — it reflects the
+  // pickable stage for TeamSelection, which is irrelevant to the leaderboard.
+  const { tournamentId, viewStage } = useTeam();
   const navigate = useNavigate();
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [rows, setRows] = useState([]);
@@ -14,14 +19,46 @@ export default function Leaderboard() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [liveScores, setLiveScores] = useState({});
   const [extraStats, setExtraStats] = useState({});
+  const [teamStages, setTeamStages] = useState({});
+  const [allStages, setAllStages] = useState([]);
 
+  // Local stage selector — independent of TeamSelection's activeStage.
+  // Seeded from viewStage (the currently live stage) but user can change it.
+  const [selectedStage, setSelectedStage] = useState(null);
+
+  // Seed selectedStage from viewStage once it resolves
   useEffect(() => {
-    console.debug("Leaderboard: useEffect tournamentId ->", tournamentId);
+    if (viewStage && !selectedStage) {
+      setSelectedStage(viewStage);
+    }
+  }, [viewStage]);
+
+  // Load all available stages for the stage selector tabs
+  useEffect(() => {
+    if (!tournamentId) return;
+    const loadStages = async () => {
+      const { data } = await supabase
+        .from("tournament_settings")
+        .select("stage_id, stages:stage_id(id, stage_name)")
+        .eq("tournament_id", tournamentId)
+        .order("stage_id", { ascending: true });
+
+      if (data) {
+        const stages = data
+          .map((row) => row.stages)
+          .filter(Boolean);
+        setAllStages(stages);
+      }
+    };
+    loadStages();
+  }, [tournamentId]);
+
+  // Fetch leaderboard and live scores when tournament is available
+  useEffect(() => {
     if (!tournamentId) return;
     fetchLeaderboard();
     fetchLiveScores();
 
-    // Subscribe to live score updates
     const channel = supabase
       .channel("live_leaderboard_updates")
       .on(
@@ -32,77 +69,78 @@ export default function Leaderboard() {
           table: "live_userteam_points",
           filter: `tournament_id=eq.${tournamentId}`,
         },
-        () => {
-          fetchLiveScores();
-        }
+        () => fetchLiveScores()
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { supabase.removeChannel(channel); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournamentId]);
 
+  // Fetch extra stats — scoped to selectedStage for correct max_subs
   useEffect(() => {
     if (!tournamentId) return;
 
     async function fetchExtraStats() {
       try {
-        // 1. Get Max Subs
-        const { data: settings } = await supabase
-          .from('tournament_settings')
-          .select('max_subs')
-          .eq('tournament_id', tournamentId)
-          .single();
+        // Get max_subs for the selected stage specifically
+        const settingsQuery = supabase
+          .from("tournament_settings")
+          .select("max_subs")
+          .eq("tournament_id", tournamentId);
+
+        if (selectedStage?.id) {
+          settingsQuery.eq("stage_id", selectedStage.id);
+        }
+
+        const { data: settings } = await settingsQuery.maybeSingle();
         const maxSubs = settings?.max_subs || 3;
 
-        // 2. Get Teams Subs Used
         const { data: teamsData } = await supabase
-          .from('teams')
-          .select('id, subs_used')
-          .eq('tournament_id', tournamentId);
+          .from("teams")
+          .select("id, subs_used, stage_id")
+          .eq("tournament_id", tournamentId);
 
-        // 3. Get Appearances (count of rows in player_performance_summary per team)
         const { data: perfData } = await supabase
-          .from('player_performance_summary')
-          .select('team_id')
-          .eq('tournament_id', tournamentId);
+          .from("player_performance_summary")
+          .select("team_id")
+          .eq("tournament_id", tournamentId);
 
         const stats = {};
-        
-        teamsData?.forEach(t => {
+        const stages = {};
+
+        teamsData?.forEach((t) => {
           stats[t.id] = {
             subsRemaining: Math.max(0, maxSubs - (t.subs_used || 0)),
-            appearances: 0
+            appearances: 0,
           };
+          stages[t.id] = t.stage_id;
         });
 
-        perfData?.forEach(row => {
+        perfData?.forEach((row) => {
           if (stats[row.team_id]) {
             stats[row.team_id].appearances += 1;
           }
         });
 
         setExtraStats(stats);
+        setTeamStages(stages);
       } catch (err) {
         console.error("Error fetching extra stats:", err);
       }
     }
 
     fetchExtraStats();
-  }, [tournamentId]);
+  }, [tournamentId, selectedStage?.id]);
 
   async function fetchLeaderboard() {
     setError("");
     setLoading(true);
     try {
-      const res = await supabase.rpc("get_leaderboard", { p_tournament_id: tournamentId });
-
-      console.debug("Leaderboard: rpc response ->", res);
-
+      const res = await supabase.rpc("get_leaderboard", {
+        p_tournament_id: tournamentId,
+      });
       if (res.error) {
-        console.error("RPC error", res.error);
         setError(String(res.error.message || res.error));
         setRows([]);
       } else {
@@ -110,7 +148,6 @@ export default function Leaderboard() {
         setLastUpdated(new Date());
       }
     } catch (e) {
-      console.error(e);
       setError(String(e.message || e));
       setRows([]);
     } finally {
@@ -125,30 +162,19 @@ export default function Leaderboard() {
         .select("team_id, total, batting, bowling, fielding, bonus")
         .eq("tournament_id", tournamentId);
 
-      if (error) {
-        console.error("Error fetching live scores:", error);
-        return;
-      }
+      if (error) { console.error("Error fetching live scores:", error); return; }
 
       const aggregated = {};
-      if (data) {
-        data.forEach((row) => {
-          if (!aggregated[row.team_id]) {
-            aggregated[row.team_id] = {
-              total: 0,
-              batting: 0,
-              bowling: 0,
-              fielding: 0,
-              bonus: 0,
-            };
-          }
-          aggregated[row.team_id].total += Number(row.total) || 0;
-          aggregated[row.team_id].batting += Number(row.batting) || 0;
-          aggregated[row.team_id].bowling += Number(row.bowling) || 0;
-          aggregated[row.team_id].fielding += Number(row.fielding) || 0;
-          aggregated[row.team_id].bonus += Number(row.bonus) || 0;
-        });
-      }
+      data?.forEach((row) => {
+        if (!aggregated[row.team_id]) {
+          aggregated[row.team_id] = { total: 0, batting: 0, bowling: 0, fielding: 0, bonus: 0 };
+        }
+        aggregated[row.team_id].total += Number(row.total) || 0;
+        aggregated[row.team_id].batting += Number(row.batting) || 0;
+        aggregated[row.team_id].bowling += Number(row.bowling) || 0;
+        aggregated[row.team_id].fielding += Number(row.fielding) || 0;
+        aggregated[row.team_id].bonus += Number(row.bonus) || 0;
+      });
       setLiveScores(aggregated);
     } catch (e) {
       console.error("Exception fetching live scores:", e);
@@ -165,15 +191,14 @@ export default function Leaderboard() {
   const processedRows = useMemo(() => {
     if (!rows.length) return [];
 
-    let data = rows.map((row) => {
-      const live = liveScores[row.team_id] || {
-        total: 0,
-        batting: 0,
-        bowling: 0,
-        fielding: 0,
-        bonus: 0,
-      };
-      const extra = extraStats[row.team_id] || { subsRemaining: '-', appearances: 0 };
+    // Filter by the leaderboard's own selectedStage, not context's activeStage
+    const filteredRows = selectedStage
+      ? rows.filter((row) => teamStages[row.team_id] === selectedStage.id)
+      : rows;
+
+    let data = filteredRows.map((row) => {
+      const live = liveScores[row.team_id] || { total: 0, batting: 0, bowling: 0, fielding: 0, bonus: 0 };
+      const extra = extraStats[row.team_id] || { subsRemaining: "-", appearances: 0 };
 
       if (!isLive) {
         return {
@@ -183,11 +208,8 @@ export default function Leaderboard() {
           display_bowling: Number(row.bowling_total),
           display_fielding: Number(row.fielding_total),
           display_bonus: Number(row.bonus_total),
-          live_delta_total: 0,
-          live_delta_batting: 0,
-          live_delta_bowling: 0,
-          live_delta_fielding: 0,
-          live_delta_bonus: 0,
+          live_delta_total: 0, live_delta_batting: 0,
+          live_delta_bowling: 0, live_delta_fielding: 0, live_delta_bonus: 0,
           display_rank: row.rank_position,
           display_rank_change: row.rank_change || 0,
           appearances: extra.appearances,
@@ -217,14 +239,14 @@ export default function Leaderboard() {
       data = data.map((row, index) => ({
         ...row,
         display_rank: index + 1,
-        display_rank_change: row.rank_position ? (row.rank_position - (index + 1)) : 0,
+        display_rank_change: row.rank_position ? row.rank_position - (index + 1) : 0,
       }));
     } else {
       data.sort((a, b) => a.rank_position - b.rank_position);
     }
 
     return data;
-  }, [rows, liveScores, isLive, extraStats]);
+  }, [rows, liveScores, isLive, extraStats, selectedStage, teamStages]);
 
   return (
     <div className="min-h-screen bg-dark-500 text-white py-6">
@@ -234,16 +256,42 @@ export default function Leaderboard() {
             No tournament selected. Please select a tournament to view the leaderboard.
           </div>
         )}
+
         <div className="bg-card-light rounded-2xl shadow-card p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h1 className=" text-center text-2xl sm:text-3xl font-bold text-primary-500">Leaderboard</h1>
+              <h1 className="text-center text-2xl sm:text-3xl font-bold text-primary-500">
+                Leaderboard
+                
+              </h1>
               {lastUpdated && (
-                <p className="text-center text-sm text-gray-400 mt-1">Updated {lastUpdated.toLocaleTimeString()}</p>
+                <p className="text-center text-sm text-gray-400 mt-1">
+                  Updated {lastUpdated.toLocaleTimeString()}
+                </p>
               )}
             </div>
 
             <div className="flex items-center gap-3">
+              {/*
+              {allStages.length > 1 && (
+                <div className="flex gap-2">
+                  {allStages.map((stage) => (
+                    <button
+                      key={stage.id}
+                      onClick={() => setSelectedStage(stage)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                        selectedStage?.id === stage.id
+                          ? "bg-primary-500 text-black"
+                          : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                      }`}
+                    >
+                      {stage.stage_name}
+                    </button>
+                  ))}
+                </div>
+              )} */}
+
+              {/* Live toggle */}
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-300">Live</span>
                 <button
@@ -292,8 +340,14 @@ export default function Leaderboard() {
                           <div className="text-right">
                             <div className="font-bold text-primary-500">
                               {formatNumber(r.display_total)}
-                              {isLive && r.live_delta_total !== 0 && <span className={`ml-1 text-xs ${r.live_delta_total < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_total < 0 ? "" : "+"}{formatNumber(r.live_delta_total)}</span>}
-                              {isLive && r.live_delta_total === 0 && <span className={`ml-1 text-xs text-gray-400`}>+0</span>}                              
+                              {isLive && r.live_delta_total !== 0 && (
+                                <span className={`ml-1 text-xs ${r.live_delta_total < 0 ? "text-red-400" : "text-green-400"}`}>
+                                  {r.live_delta_total < 0 ? "" : "+"}{formatNumber(r.live_delta_total)}
+                                </span>
+                              )}
+                              {isLive && r.live_delta_total === 0 && (
+                                <span className="ml-1 text-xs text-gray-400">+0</span>
+                              )}
                             </div>
                           </div>
                           <button
@@ -304,12 +358,8 @@ export default function Leaderboard() {
                             className="flex items-center justify-center w-3 h-3 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors"
                           >
                             <svg
-                              className={`w-2 h-2 text-gray-300 transition-transform ${
-                                expandedTeam === r.team_id ? "rotate-180" : ""
-                              }`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                              className={`w-2 h-2 text-gray-300 transition-transform ${expandedTeam === r.team_id ? "rotate-180" : ""}`}
+                              fill="none" stroke="currentColor" viewBox="0 0 24 24"
                             >
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
                             </svg>
@@ -326,28 +376,44 @@ export default function Leaderboard() {
                             <div className="text-xs text-gray-400">Batting</div>
                             <div className="font-bold text-primary-500">
                               {formatNumber(r.display_batting)}
-                              {isLive && r.live_delta_batting !== 0 && <span className={`ml-1 text-xs ${r.live_delta_batting < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_batting < 0 ? "" : "+"}{formatNumber(r.live_delta_batting)}</span>}
+                              {isLive && r.live_delta_batting !== 0 && (
+                                <span className={`ml-1 text-xs ${r.live_delta_batting < 0 ? "text-red-400" : "text-green-400"}`}>
+                                  {r.live_delta_batting < 0 ? "" : "+"}{formatNumber(r.live_delta_batting)}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="bg-dark-600 p-2 rounded">
                             <div className="text-xs text-gray-400">Bowling</div>
                             <div className="font-bold text-primary-500">
                               {formatNumber(r.display_bowling)}
-                              {isLive && r.live_delta_bowling !== 0 && <span className={`ml-1 text-xs ${r.live_delta_bowling < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_bowling < 0 ? "" : "+"}{formatNumber(r.live_delta_bowling)}</span>}
+                              {isLive && r.live_delta_bowling !== 0 && (
+                                <span className={`ml-1 text-xs ${r.live_delta_bowling < 0 ? "text-red-400" : "text-green-400"}`}>
+                                  {r.live_delta_bowling < 0 ? "" : "+"}{formatNumber(r.live_delta_bowling)}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="bg-dark-600 p-2 rounded">
                             <div className="text-xs text-gray-400">Fielding</div>
                             <div className="font-bold text-primary-500">
                               {formatNumber(r.display_fielding)}
-                              {isLive && r.live_delta_fielding !== 0 && <span className={`ml-1 text-xs ${r.live_delta_fielding < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_fielding < 0 ? "" : "+"}{formatNumber(r.live_delta_fielding)}</span>}
+                              {isLive && r.live_delta_fielding !== 0 && (
+                                <span className={`ml-1 text-xs ${r.live_delta_fielding < 0 ? "text-red-400" : "text-green-400"}`}>
+                                  {r.live_delta_fielding < 0 ? "" : "+"}{formatNumber(r.live_delta_fielding)}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="bg-dark-600 p-2 rounded">
                             <div className="text-xs text-gray-400">Bonus</div>
                             <div className="font-bold text-primary-500">
                               {formatNumber(r.display_bonus)}
-                              {isLive && r.live_delta_bonus !== 0 && <span className={`ml-1 text-xs ${r.live_delta_bonus < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_bonus < 0 ? "" : "+"}{formatNumber(r.live_delta_bonus)}</span>}
+                              {isLive && r.live_delta_bonus !== 0 && (
+                                <span className={`ml-1 text-xs ${r.live_delta_bonus < 0 ? "text-red-400" : "text-green-400"}`}>
+                                  {r.live_delta_bonus < 0 ? "" : "+"}{formatNumber(r.live_delta_bonus)}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="bg-dark-600 p-2 rounded">
@@ -360,7 +426,9 @@ export default function Leaderboard() {
                           </div>
                           {Math.abs(breakdownSum - r.display_total) > 0.01 && (
                             <div className="col-span-3 bg-yellow-900/30 border border-yellow-600 rounded p-2">
-                              <div className="text-xs text-yellow-300">⚠ Breakdown sum {formatNumber(breakdownSum)} ≠ Total {formatNumber(r.display_total)}</div>
+                              <div className="text-xs text-yellow-300">
+                                ⚠ Breakdown sum {formatNumber(breakdownSum)} ≠ Total {formatNumber(r.display_total)}
+                              </div>
                             </div>
                           )}
                         </div>
@@ -385,12 +453,17 @@ export default function Leaderboard() {
                   <tbody>
                     {processedRows.map((r) => (
                       <React.Fragment key={r.team_id}>
-                        <tr className="border-b border-gray-700 hover:bg-dark-500 transition-colors cursor-pointer" onClick={() => navigate(`/team/${r.team_id}`)}>
+                        <tr
+                          className="border-b border-gray-700 hover:bg-dark-500 transition-colors cursor-pointer"
+                          onClick={() => navigate(`/team/${r.team_id}`)}
+                        >
                           <td className="py-3 px-4 align-top">
                             <div className="flex flex-col items-center">
                               <span>{r.display_rank}</span>
                               {r.display_rank_change !== 0 && (
-                                <span className={`text-xs font-bold ${r.display_rank_change > 0 ? "text-green-400" : "text-red-400"}`}>{r.display_rank_change > 0 ? "▲" : "▼"} {Math.abs(r.display_rank_change)}</span>
+                                <span className={`text-xs font-bold ${r.display_rank_change > 0 ? "text-green-400" : "text-red-400"}`}>
+                                  {r.display_rank_change > 0 ? "▲" : "▼"} {Math.abs(r.display_rank_change)}
+                                </span>
                               )}
                             </div>
                           </td>
@@ -400,13 +473,26 @@ export default function Leaderboard() {
                           <td className="py-3 px-4 text-gray-300">{r.username}</td>
                           <td className="py-3 px-4 text-right font-bold text-primary-500">
                             {formatNumber(r.display_total)}
-                            {isLive && <span className={`ml-1 text-xs ${r.live_delta_total < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_total >= 0 ? "+" : ""}{formatNumber(r.live_delta_total)}</span>}
+                            {isLive && (
+                              <span className={`ml-1 text-xs ${r.live_delta_total < 0 ? "text-red-400" : "text-green-400"}`}>
+                                {r.live_delta_total >= 0 ? "+" : ""}{formatNumber(r.live_delta_total)}
+                              </span>
+                            )}
                           </td>
                           <td className="py-3 px-4 text-sm text-gray-300">
-                            {formatNumber(r.display_batting)}{isLive && r.live_delta_batting !== 0 && <span className={`text-xs ${r.live_delta_batting < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_batting > 0 ? "+" : ""}{formatNumber(r.live_delta_batting)}</span>} / {formatNumber(r.display_bowling)}{isLive && r.live_delta_bowling !== 0 && <span className={`text-xs ${r.live_delta_bowling < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_bowling > 0 ? "+" : ""}{formatNumber(r.live_delta_bowling)}</span>} / {formatNumber(r.display_fielding)}{isLive && r.live_delta_fielding !== 0 && <span className={`text-xs ${r.live_delta_fielding < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_fielding > 0 ? "+" : ""}{formatNumber(r.live_delta_fielding)}</span>} / {formatNumber(r.display_bonus)}{isLive && r.live_delta_bonus !== 0 && <span className={`text-xs ${r.live_delta_bonus < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_bonus > 0 ? "+" : ""}{formatNumber(r.live_delta_bonus)}</span>}
+                            {formatNumber(r.display_batting)}
+                            {isLive && r.live_delta_batting !== 0 && <span className={`text-xs ${r.live_delta_batting < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_batting > 0 ? "+" : ""}{formatNumber(r.live_delta_batting)}</span>}
+                            {" / "}
+                            {formatNumber(r.display_bowling)}
+                            {isLive && r.live_delta_bowling !== 0 && <span className={`text-xs ${r.live_delta_bowling < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_bowling > 0 ? "+" : ""}{formatNumber(r.live_delta_bowling)}</span>}
+                            {" / "}
+                            {formatNumber(r.display_fielding)}
+                            {isLive && r.live_delta_fielding !== 0 && <span className={`text-xs ${r.live_delta_fielding < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_fielding > 0 ? "+" : ""}{formatNumber(r.live_delta_fielding)}</span>}
+                            {" / "}
+                            {formatNumber(r.display_bonus)}
+                            {isLive && r.live_delta_bonus !== 0 && <span className={`text-xs ${r.live_delta_bonus < 0 ? "text-red-400" : "text-green-400"}`}>{r.live_delta_bonus > 0 ? "+" : ""}{formatNumber(r.live_delta_bonus)}</span>}
                           </td>
                         </tr>
-
                       </React.Fragment>
                     ))}
                   </tbody>
@@ -415,7 +501,6 @@ export default function Leaderboard() {
             </div>
           )}
         </div>
-
       </div>
     </div>
   );

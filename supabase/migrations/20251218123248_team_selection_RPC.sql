@@ -1,6 +1,7 @@
 CREATE OR REPLACE FUNCTION save_draft_team(
   p_tournament_id uuid,
   p_stage text,
+  p_stage_id uuid,
   p_team_name text,
   p_username text,
   p_player_ids uuid[],
@@ -35,9 +36,9 @@ BEGIN
   END IF;
 
   -- 3. Upsert team
-  INSERT INTO teams (user_id, tournament_id, stage, team_name, username)
-  VALUES (auth.uid(), p_tournament_id, p_stage, p_team_name, p_username)
-  ON CONFLICT (user_id, tournament_id, stage)
+  INSERT INTO teams (user_id, tournament_id, stage, stage_id, team_name, username)
+  VALUES (auth.uid(), p_tournament_id, p_stage, p_stage_id, p_team_name, p_username)
+  ON CONFLICT (user_id, tournament_id, stage_id)
   DO UPDATE SET 
     team_name = EXCLUDED.team_name,
     username = EXCLUDED.username
@@ -52,7 +53,7 @@ BEGIN
   -- 5. Check deadline and auto-lock if past deadline
   SELECT team_selection_deadline INTO v_deadline
   FROM tournament_settings
-  WHERE tournament_id = p_tournament_id AND stage = p_stage;
+  WHERE tournament_id = p_tournament_id AND stage_id = p_stage_id;
 
   IF v_deadline IS NOT NULL AND NOW() > v_deadline THEN
     UPDATE teams
@@ -94,7 +95,7 @@ BEGIN
     INTO v_deadline
     FROM tournament_settings
    WHERE tournament_id = NEW.tournament_id
-     AND stage = NEW.stage;
+     AND stage_id = NEW.stage_id;
 
   -- If deadline exists and has passed, lock the team
   IF v_deadline IS NOT NULL AND now() >= v_deadline THEN
@@ -124,7 +125,7 @@ BEGIN
   SET is_locked = true
   FROM tournament_settings ts
   WHERE t.tournament_id = ts.tournament_id
-    AND t.stage = ts.stage
+    AND t.stage_id = ts.stage_id
     AND ts.team_selection_deadline IS NOT NULL
     AND NOW() > ts.team_selection_deadline
     AND t.is_locked = false;
@@ -188,3 +189,48 @@ ON live_scoring
 FOR EACH ROW
 WHEN (NEW.player_name IS NULL)
 EXECUTE FUNCTION live_add_player_name_to_performances();
+
+supabase functions new trigger-github
+
+create or replace function get_user_pickable_stage(
+  p_user_id uuid,
+  p_tournament_id uuid
+)
+returns table (
+  stage_id uuid,
+  stage_name text,
+  reason text
+)
+language plpgsql
+as $$
+begin
+  return query
+  with pickable_stage as (
+    select *
+    from tournament_stages
+    where tournament_id = p_tournament_id
+      and is_locked = false
+    order by stage_number desc
+    limit 1
+  ),
+  user_team as (
+    select *
+    from teams
+    where user_id = p_user_id
+      and tournament_id = p_tournament_id
+      and stage_id = (select id from pickable_stage)
+  )
+  select
+    a.id,
+    a.stage_name,
+    case
+      when a.id is null then 'no_active_stage'
+      when a.is_locked then 'stage_locked'
+      when ut.id is null then 'no_team_created'
+      when ut.is_locked then 'team_locked'
+      else 'open'
+    end
+  from pickable_stage a
+  left join user_team ut on true;
+end;
+$$;
