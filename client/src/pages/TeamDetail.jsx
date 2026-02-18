@@ -296,13 +296,8 @@ export default function TeamDetail() {
 
   const getPlayerDisplayScore = (player) => {
     const multiplier = player.is_captain ? 2 : 1;
-<<<<<<< Updated upstream
     
     const baseTotal = (player.scores || []).reduce((sum, s) => sum + (Number(s.total_points) || 0), 0);
-=======
-
-    const baseTotal = (player.scores || []).reduce((sum, s) => sum + (Number(s.total_points) || 0), 0) ;
->>>>>>> Stashed changes
     const baseBatting = (player.scores || []).reduce((sum, s) => sum + (Number(s.batting_points) || 0), 0);
     const baseBowling = (player.scores || []).reduce((sum, s) => sum + (Number(s.bowling_points) || 0), 0);
     const baseFielding = (player.scores || []).reduce((sum, s) => sum + (Number(s.fielding_points) || 0), 0);
