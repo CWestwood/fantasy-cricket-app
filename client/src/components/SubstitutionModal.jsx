@@ -7,13 +7,11 @@ import BallIcon from "../assets/icons/ball_white.svg";
 import AllrounderIcon from "../assets/icons/allrounder_white.svg";
 import WkglovesIcon from "../assets/icons/wkgloves_white.svg";
 
-export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, captain }) {
+export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, captain, teamId, tournamentId }) {
   const {
     validateTeamComposition,
     validateTeamLimit,
-    tournamentId,
     user,
-    teamId,
     substitutionsRemaining,
   } = useTeam();
 

@@ -705,6 +705,8 @@ export default function MyTeamPage() {
           onClose={() => setIsSubstitutionModalOpen(false)}
           selectedPlayers={myTeamPlayers}
           captain={myTeamCaptain}
+          teamId={myTeamId}
+          tournamentId={tournamentId}
         />
 
       </div>
