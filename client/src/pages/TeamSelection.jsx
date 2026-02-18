@@ -409,7 +409,10 @@ export default function TeamSelection() {
 
           <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-4">
             <div className="flex-1">
-              <h2 className="text-xl font-bold text-white">{teamName || "Your Team"}</h2>
+              <h2 className={`text-xl font-bold ${teamId ? "text-white" : "text-red-500"}`}>
+                {teamName || "Your Team"}
+                {!teamId && <span className="ml-2 text-sm font-normal">(Unsaved)</span>}
+              </h2>
               <p className="text-sm text-gray-300 mt-1">{username || "Your Name"}</p>
               <p className="mt-2 text-sm text-gray-300">Players: {selectedPlayers.length}/11</p>
 

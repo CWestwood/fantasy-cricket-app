@@ -24,9 +24,7 @@ export default function MyTeamPage() {
   // ── Local state — all scoped to the viewStage team only ──────────────────
   const [myTeamId, setMyTeamId] = useState(null);
   const [myTeamPlayers, setMyTeamPlayers] = useState([]);
-  const [myTeamCaptain, setMyTeamCaptain] = useState(null);
   const [displayedPlayers, setDisplayedPlayers] = useState([]);
-
   const [leaderboardPosition, setLeaderboardPosition] = useState(null);
   const [expandedPlayerId, setExpandedPlayerId] = useState(null);
   const [playerScores, setPlayerScores] = useState({});
@@ -42,7 +40,6 @@ export default function MyTeamPage() {
     if (!tournamentId || !viewStage?.id || !user) {
       setMyTeamId(null);
       setMyTeamPlayers([]);
-      setMyTeamCaptain(null);
       return;
     }
 
@@ -64,7 +61,6 @@ export default function MyTeamPage() {
         if (!teamData) {
           setMyTeamId(null);
           setMyTeamPlayers([]);
-          setMyTeamCaptain(null);
           return;
         }
 
@@ -100,7 +96,7 @@ export default function MyTeamPage() {
           .filter(Boolean);
 
         setMyTeamPlayers(players);
-        setMyTeamCaptain(players.find((p) => p.is_captain) || null);
+        const captainId = players.find((p) => p.is_captain && !p.is_substituted)?.id;
       } catch (e) {
         console.error("Exception loading viewStage team:", e);
       }
@@ -108,6 +104,9 @@ export default function MyTeamPage() {
 
     loadViewStageTeam();
   }, [tournamentId, viewStage?.id, user]);
+
+  const sourcePlayers = displayedPlayers.length ? displayedPlayers : myTeamPlayers;
+  const captainId = sourcePlayers.find((p) => p.is_captain && !p.is_substituted)?.id;
 
   // ── Map roles to icons ────────────────────────────────────────────────────
   const roleIconMap = {
@@ -236,7 +235,7 @@ export default function MyTeamPage() {
 
   // ── Score calculation ─────────────────────────────────────────────────────
   const getDisplayScore = (playerId) => {
-    const isCaptain = myTeamCaptain?.id === playerId;
+    const isCaptain = captainId === playerId;
     const multiplier = isCaptain ? 2 : 1;
 
     const base = playerScores[playerId] || { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 };
@@ -267,7 +266,7 @@ export default function MyTeamPage() {
   };
 
   // ── Totals ────────────────────────────────────────────────────────────────
-  const sourcePlayers = displayedPlayers.length ? displayedPlayers : myTeamPlayers;
+  
 
   const totalPoints   = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).total, 0);
   const battingTotal  = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).batting, 0);
@@ -328,8 +327,8 @@ export default function MyTeamPage() {
   const substitutedOutPlayers = sourcePlayers.filter((p) => p.is_substituted);
 
   const sortedActivePlayers = [...activePlayers].sort((a, b) => {
-    if (myTeamCaptain?.id === a.id) return -1;
-    if (myTeamCaptain?.id === b.id) return 1;
+    if (captainId === a.id) return -1;
+    if (captainId === b.id) return 1;
     return 0;
   });
 
@@ -496,7 +495,7 @@ export default function MyTeamPage() {
                                     className={`w-full text-sm font-semibold text-center truncate focus:outline-none hover:underline ${
                                       player.is_substituted
                                         ? "text-gray-100"
-                                        : myTeamCaptain?.id === player.id
+                                        : captainId === player.id
                                           ? "text-yellow-400"
                                           : "text-white"
                                     }`}
@@ -608,7 +607,7 @@ export default function MyTeamPage() {
                                       className={`font-semibold items-center focus:outline-none ${
                                         player.is_substituted
                                           ? "text-gray-400"
-                                          : myTeamCaptain?.id === player.id
+                                          : captainId === player.id
                                             ? "text-yellow-400"
                                             : "text-white"
                                       }`}
@@ -704,7 +703,7 @@ export default function MyTeamPage() {
           isOpen={isSubstitutionModalOpen}
           onClose={() => setIsSubstitutionModalOpen(false)}
           selectedPlayers={myTeamPlayers}
-          captain={myTeamCaptain}
+          captain={captainId}
           teamId={myTeamId}
           tournamentId={tournamentId}
         />

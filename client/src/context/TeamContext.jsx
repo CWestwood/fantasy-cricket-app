@@ -209,13 +209,28 @@ export const TeamProvider = ({ children }) => {
       setTeamStageId(activeStage.id);
       setSelectedPlayers([]);
       setCaptain(null);
+      setSubstitutionsRemaining(null);
+      setSubsAllocated(null);
       
       // ── Fetch settings inline so stageSettings state is not a dependency ──
+      const{ data:pickingstage } = await supabase
+        .from("tournament_stages")
+        .select("id")
+        .eq("tournament_id", tournamentId)
+        .eq("is_locked", false)
+        .single()
+      
+      console.log("loadUserTeam: picking stage ->", pickingstage);
+
+
       const { data: settingsData } = await supabase
         .from("tournament_settings")
         .select("max_country, max_subs")
-        .eq("stage_id", activeStage.id)
+        .eq("stage_id", pickingstage.id)
+        .eq("tournament_id", tournamentId)
         .maybeSingle();
+
+      console.log("loadUserTeam: settingsData ->", settingsData);
 
       const maxSubs = settingsData?.max_subs ?? 3;
 
@@ -255,11 +270,7 @@ export const TeamProvider = ({ children }) => {
       } catch (err) {
         console.error("Error checking prior team name:", err.message);
       }
-      console.log("loadUserTeam:", {
-        stage: activeStage?.stage_name,
-        reason: activeStage?.reason,
-        aboutToEnterFastPath: activeStage.reason === "no_team" || activeStage.reason === "no_team_created"
-      });
+      
       // ── Fast-path: RPC already told us there is no team for this stage ────
       // Skip the Supabase team fetch and go straight to draft restore.
       if (
@@ -271,12 +282,10 @@ export const TeamProvider = ({ children }) => {
         setSubstitutionsRemaining(maxSubs);
 
         const draft = readCache(tournamentId, activeStage.id);
-        console.log("Cache results:", draft);
         if (draft) {
           if (draft.teamName) setTeamName((prev) => prev || draft.teamName);
           if (draft.username) setUsername((prev) => prev || draft.username);
           if (draft.players?.length) {
-            console.log("Restoring players from cache:", draft.players);
             setSelectedPlayers(draft.players);
           }
           if (draft.captain) setCaptain(draft.captain);
@@ -311,7 +320,22 @@ export const TeamProvider = ({ children }) => {
           setSubstitutionsRemaining(Math.max(0, maxSubs - (teamData.subs_used || 0)));
           setSubsAllocated(maxSubs);
           setIsTeamLocked(Boolean(teamData.is_locked));
+          
+          if (pickableStage && viewStage && pickableStage.id !== viewStage.id) {
+            const { data: viewTeamData } = await supabase
+              .from("teams")
+              .select("subs_used, is_locked")
+              .eq("user_id", user.id)
+              .eq("tournament_id", tournamentId)
+              .eq("stage_id", viewStage.id)
+              .maybeSingle();
 
+            if (viewTeamData) {
+              setSubstitutionsRemaining(Math.max(0, maxSubs - (viewTeamData.subs_used || 0)));
+              setSubsAllocated(maxSubs);
+              setIsTeamLocked(Boolean(viewTeamData.is_locked));
+            }
+          }
           const { data: teamPlayersData, error: playersError } = await supabase
             .from("team_players")
             .select(`
@@ -339,7 +363,7 @@ export const TeamProvider = ({ children }) => {
             .filter(Boolean);
 
           setSelectedPlayers(loadedPlayers);
-          const loadedCaptain = loadedPlayers.find((p) => p.is_captain);
+          const loadedCaptain = loadedPlayers.find((p) => p.is_captain && !p.is_substituted);
           if (loadedCaptain) setCaptain(loadedCaptain);
 
         } else {
@@ -529,6 +553,7 @@ export const TeamProvider = ({ children }) => {
   };
 
   const validateTeamLimit = (players) => {
+    console.log(stageSettings);
     const MAX_PER_TEAM = stageSettings?.max_country || 3;
     const teamCounts = players
       .filter((p) => !p.is_substituted)

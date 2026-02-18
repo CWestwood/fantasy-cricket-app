@@ -133,8 +133,6 @@ export default function TeamDetail() {
         `)
         .eq("team_id", teamId);
 
-      console.debug("TeamDetail: team_players ->", teamPlayersRes);
-
 
       if (teamPlayersRes.error) {
         console.debug("team_players error:", teamPlayersRes.error);
