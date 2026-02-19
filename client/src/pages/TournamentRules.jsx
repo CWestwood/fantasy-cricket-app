@@ -172,7 +172,7 @@ const TournamentRules = () => {
                       
              <table className="w-8/12 text-left text-sm bg-dark-600 p-4 rounded mx-auto mt-2 mb-4">
               <tbody className="divide-y divide-gray-700">
-                <tr><td className="p-3 text-sm text-center"> 1st - 5th </td><td className="p-3 ttext-center"2 subs</td></tr>
+                <tr><td className="p-3 text-sm text-center"> 1st - 5th </td><td className="p-3 text-center">2 subs</td></tr>
                 <tr><td className="p-3 text-sm text-center"> 6th - 10th</td><td className="p-3 text-center">3 subs</td></tr>
                 <tr><td className="p-3 text-sm text-center">11th - 15th</td><td className="p-3 text-center">4 subs</td></tr>
                 <tr><td className="p-3 text-sm text-center">&gt; 15th</td><td className="p-3 text-center">5 subs</td></tr>
