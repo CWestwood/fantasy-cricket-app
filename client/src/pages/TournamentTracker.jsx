@@ -41,9 +41,10 @@ export default function TournamentTracker() {
         const { data: history, error: historyError } = await supabase
           .from("tournament_leaderboard_history")
           .select("*")
-          .eq("tournament_id", tournamentId);
+          .eq("tournament_id", tournamentId)
+          .neq("total", 0);
 
-        if (historyError) throw historyError;
+        if (historyError) throw historyError;``
         setHistoryData(history || []);
 
         // 3. Extract unique teams from history
