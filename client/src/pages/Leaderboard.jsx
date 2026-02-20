@@ -8,7 +8,7 @@ export default function Leaderboard() {
   // viewStage is used only to seed the initial stage selector.
   // activeStage is intentionally NOT used here — it reflects the
   // pickable stage for TeamSelection, which is irrelevant to the leaderboard.
-  const { tournamentId, viewStage } = useTeam();
+  const { tournamentId } = useTeam();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
@@ -18,20 +18,13 @@ export default function Leaderboard() {
   const [isLive, setIsLive] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [liveScores, setLiveScores] = useState({});
+  const [liveScoresByUser, setLiveScoresByUser] = useState({});
   const [extraStats, setExtraStats] = useState({});
   const [teamStages, setTeamStages] = useState({});
   const [allStages, setAllStages] = useState([]);
 
   // Local stage selector — independent of TeamSelection's activeStage.
-  // Seeded from viewStage (the currently live stage) but user can change it.
   const [selectedStage, setSelectedStage] = useState(null);
-
-  // Seed selectedStage from viewStage once it resolves
-  useEffect(() => {
-    if (viewStage && !selectedStage) {
-      setSelectedStage(viewStage);
-    }
-  }, [viewStage]);
 
   // Load all available stages for the stage selector tabs
   useEffect(() => {
@@ -56,7 +49,7 @@ export default function Leaderboard() {
   // Fetch leaderboard and live scores when tournament is available
   useEffect(() => {
     if (!tournamentId) return;
-    fetchLeaderboard();
+    fetchLeaderboard(selectedStage?.id ?? null);
     fetchLiveScores();
 
     const channel = supabase
@@ -75,7 +68,7 @@ export default function Leaderboard() {
 
     return () => { supabase.removeChannel(channel); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tournamentId]);
+  }, [tournamentId, selectedStage?.id]);
 
   // Fetch extra stats — scoped to selectedStage for correct max_subs
   useEffect(() => {
@@ -133,12 +126,13 @@ export default function Leaderboard() {
     fetchExtraStats();
   }, [tournamentId, selectedStage?.id]);
 
-  async function fetchLeaderboard() {
+  async function fetchLeaderboard(stageId = null) {
     setError("");
     setLoading(true);
     try {
       const res = await supabase.rpc("get_leaderboard", {
         p_tournament_id: tournamentId,
+        p_stage_id: stageId ?? null,
       });
       if (res.error) {
         setError(String(res.error.message || res.error));
@@ -159,23 +153,38 @@ export default function Leaderboard() {
     try {
       const { data, error } = await supabase
         .from("live_userteam_points")
-        .select("team_id, total, batting, bowling, fielding, bonus")
+        .select("user_id, team_id, total, batting, bowling, fielding, bonus")
         .eq("tournament_id", tournamentId);
 
       if (error) { console.error("Error fetching live scores:", error); return; }
 
       const aggregated = {};
+      const aggregatedByUser = {};
+
       data?.forEach((row) => {
+        // by team_id
         if (!aggregated[row.team_id]) {
           aggregated[row.team_id] = { total: 0, batting: 0, bowling: 0, fielding: 0, bonus: 0 };
         }
-        aggregated[row.team_id].total += Number(row.total) || 0;
-        aggregated[row.team_id].batting += Number(row.batting) || 0;
-        aggregated[row.team_id].bowling += Number(row.bowling) || 0;
-        aggregated[row.team_id].fielding += Number(row.fielding) || 0;
-        aggregated[row.team_id].bonus += Number(row.bonus) || 0;
+        aggregated[row.team_id].total   += Number(row.total)    || 0;
+        aggregated[row.team_id].batting += Number(row.batting)  || 0;
+        aggregated[row.team_id].bowling += Number(row.bowling)  || 0;
+        aggregated[row.team_id].fielding+= Number(row.fielding) || 0;
+        aggregated[row.team_id].bonus   += Number(row.bonus)    || 0;
+
+        // by user_id (for combined leaderboard view)
+        if (!aggregatedByUser[row.user_id]) {
+          aggregatedByUser[row.user_id] = { total: 0, batting: 0, bowling: 0, fielding: 0, bonus: 0 };
+        }
+        aggregatedByUser[row.user_id].total   += Number(row.total)    || 0;
+        aggregatedByUser[row.user_id].batting += Number(row.batting)  || 0;
+        aggregatedByUser[row.user_id].bowling += Number(row.bowling)  || 0;
+        aggregatedByUser[row.user_id].fielding+= Number(row.fielding) || 0;
+        aggregatedByUser[row.user_id].bonus   += Number(row.bonus)    || 0;
       });
+
       setLiveScores(aggregated);
+      setLiveScoresByUser(aggregatedByUser);
     } catch (e) {
       console.error("Exception fetching live scores:", e);
     }
@@ -197,7 +206,9 @@ export default function Leaderboard() {
       : rows;
 
     let data = filteredRows.map((row) => {
-      const live = liveScores[row.team_id] || { total: 0, batting: 0, bowling: 0, fielding: 0, bonus: 0 };
+      const live = selectedStage
+        ? (liveScores[row.team_id] || { total: 0, batting: 0, bowling: 0, fielding: 0, bonus: 0 })
+        : (liveScoresByUser[row.user_id] || { total: 0, batting: 0, bowling: 0, fielding: 0, bonus: 0 });
       const extra = extraStats[row.team_id] || { subsRemaining: "-", appearances: 0 };
 
       if (!isLive) {
@@ -271,11 +282,30 @@ export default function Leaderboard() {
               )}
             </div>
 
-            <div className="flex items-center gap-3">
-              {/*
-              {allStages.length > 1 && (
-                <div className="flex gap-2">
-                  {allStages.map((stage) => (
+            <div className="flex items-center gap-3 ">
+              <div className="flex items-center gap-3 flex-wrap span-auto sm:span-full">
+                {/* Overall Button */}
+                {allStages.length > 1 && (
+                  <button
+                    onClick={() => setSelectedStage(null)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                      selectedStage === null
+                        ? "bg-primary-500 text-black"
+                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    }`}
+                  >
+                    Overall
+                  </button>
+                )}
+
+                {/* Dynamic Stage Buttons */}
+                {allStages.map((stage) => {
+                  // Map 'Super8s' and 'Knockouts' to 'Super8s', otherwise keep the name
+                  const displayName = (stage.stage_name === "Super8s and Knockouts" || stage.stage_name === "Knockouts") 
+                    ? "Super8s" 
+                    : stage.stage_name;
+
+                  return (
                     <button
                       key={stage.id}
                       onClick={() => setSelectedStage(stage)}
@@ -285,26 +315,23 @@ export default function Leaderboard() {
                           : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                       }`}
                     >
-                      {stage.stage_name}
+                      {displayName}
                     </button>
-                  ))}
-                </div>
-              )} */}
+                  );
+                })}
 
-              {/* Live toggle */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-300">Live</span>
+                {/* Live Toggle Button (Now part of the same group) */}
                 <button
                   onClick={() => setIsLive(!isLive)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    isLive ? "bg-primary-500" : "bg-gray-600"
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                    isLive
+                      ? "bg-green-600 text-white" 
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                   }`}
                 >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      isLive ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
+                  {/* Visual indicator for 'Live' status */}
+                  <span className={`w-1.5 h-1.5 rounded-full ${isLive ? "bg-white animate-pulse" : "bg-gray-500"}`} />
+                  Live
                 </button>
               </div>
             </div>
