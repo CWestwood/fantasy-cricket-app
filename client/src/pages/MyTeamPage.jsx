@@ -25,7 +25,9 @@ export default function MyTeamPage() {
   const [stages, setStages] = useState([]);
   const [selectedView, setSelectedView] = useState("combined"); // "combined" or stage.id
   const [allMyTeamIds, setAllMyTeamIds] = useState([]);
-  const [grandTotals, setGrandTotals] = useState({ batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 });
+  
+  // New state to hold baseline stats from the leaderboard cache
+  const [cachedStats, setCachedStats] = useState({ batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 });
 
   const [myTeamId, setMyTeamId] = useState(null);
   const [myTeamPlayers, setMyTeamPlayers] = useState([]);
@@ -37,7 +39,7 @@ export default function MyTeamPage() {
   const [isLive, setIsLive] = useState(true);
   const [livePlayerScores, setLivePlayerScores] = useState({});
 
-  // ── Fetch stages and all user teams (for combined totals) ─────────────────
+  // ── Fetch stages and all user teams (for combined view IDs) ───────────────
   useEffect(() => {
     if (!tournamentId || !user?.id) return;
 
@@ -47,7 +49,7 @@ export default function MyTeamPage() {
         .from("tournament_stages")
         .select("*")
         .eq("tournament_id", tournamentId)
-        .order("id", { ascending: true }); // Keeping order predictable
+        .order("id", { ascending: true });
 
       if (stagesData) setStages(stagesData);
 
@@ -59,31 +61,7 @@ export default function MyTeamPage() {
         .eq("tournament_id", tournamentId);
 
       if (teamsData) {
-        const teamIds = teamsData.map((t) => t.id);
-        setAllMyTeamIds(teamIds);
-
-        // Fetch grand historical totals if teamIds exist
-        if (teamIds.length > 0) {
-          const { data: performanceData } = await supabase
-            .from("player_performance_summary")
-            .select("batting, bowling, fielding, bonus, fantasy_total")
-            .in("team_id", teamIds);
-
-          if (performanceData) {
-            const totals = performanceData.reduce(
-              (acc, row) => {
-                acc.batting += row.batting || 0;
-                acc.bowling += row.bowling || 0;
-                acc.fielding += row.fielding || 0;
-                acc.bonus += row.bonus || 0;
-                acc.total += row.fantasy_total || 0;
-                return acc;
-              },
-              { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 }
-            );
-            setGrandTotals(totals);
-          }
-        }
+        setAllMyTeamIds(teamsData.map((t) => t.id));
       }
     };
 
@@ -177,7 +155,7 @@ export default function MyTeamPage() {
     return roleIconMap[normalizedRole] || null;
   };
 
-  // ── Fetch historical player performance ───────────────────────────────────
+  // ── Fetch historical player performance (for player cards) ────────────────
   useEffect(() => {
     if (!displayedPlayers || displayedPlayers.length === 0 || !tournamentId || !myTeamId) return;
 
@@ -190,7 +168,6 @@ export default function MyTeamPage() {
           .in("player_id", playerIds)
           .eq("tournament_id", tournamentId);
 
-        // If 'combined', pull scores for these players across ALL user teams
         if (selectedView === "combined" && allMyTeamIds.length > 0) {
           query = query.in("team_id", allMyTeamIds);
         } else {
@@ -270,32 +247,62 @@ export default function MyTeamPage() {
     return () => { supabase.removeChannel(channel); };
   }, [myTeamPlayers]);
 
-  // ── Fetch leaderboard position ────────────────────────────────────────────
+  // ── Fetch leaderboard cache (Base Scores & Position) ──────────────────────
   useEffect(() => {
-    if (!myTeamId || !tournamentId) return;
+    if (!tournamentId) return;
+    if (selectedView !== "combined" && !myTeamId) {
+      setLeaderboardPosition(null);
+      setCachedStats({ batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 });
+      return;
+    }
 
-    async function fetchLeaderboardPosition() {
+    async function fetchLeaderboardData() {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from("tournament_leaderboard_cache")
-          .select("rank_position")
-          .eq("team_id", myTeamId)
-          .eq("tournament_id", tournamentId)
-          .single();
+          .select("rank_position, batting_total, bowling_total, fielding_total, bonus_total, total")
+          .eq("tournament_id", tournamentId);
+
+        // Sum across all teams for 'combined', otherwise fetch single stage team
+        if (selectedView === "combined" && allMyTeamIds.length > 0) {
+          query = query.in("team_id", allMyTeamIds);
+        } else if (myTeamId) {
+          query = query.eq("team_id", myTeamId);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
-          console.error("Error fetching leaderboard position:", error);
+          console.error("Error fetching leaderboard cache:", error);
           return;
         }
 
-        if (data) setLeaderboardPosition(data.rank_position);
+        if (data && data.length > 0) {
+          let stats = { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 };
+          // Find the best rank if combining multiple cache rows
+          let minRank = Math.min(...data.map(r => r.rank_position).filter(Boolean));
+
+          data.forEach(row => {
+            stats.batting += Number(row.batting_total || 0);
+            stats.bowling += Number(row.bowling_total || 0);
+            stats.fielding += Number(row.fielding_total || 0);
+            stats.bonus += Number(row.bonus_total || 0);
+            stats.total += Number(row.total || 0); 
+          });
+
+          setCachedStats(stats);
+          setLeaderboardPosition(minRank === Infinity ? null : minRank);
+        } else {
+          setLeaderboardPosition(null);
+          setCachedStats({ batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 });
+        }
       } catch (e) {
         console.error("Exception fetching leaderboard position:", e);
       }
     }
 
-    fetchLeaderboardPosition();
-  }, [myTeamId, tournamentId]);
+    fetchLeaderboardData();
+  }, [myTeamId, tournamentId, selectedView, allMyTeamIds]);
 
   // ── Score calculation ─────────────────────────────────────────────────────
   const getDisplayScore = (playerId) => {
@@ -328,26 +335,20 @@ export default function MyTeamPage() {
     };
   };
 
-  // ── Totals ────────────────────────────────────────────────────────────────
-  const baseTotalPoints   = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).total, 0);
-  const baseBatting       = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).batting, 0);
-  const baseBowling       = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).bowling, 0);
-  const baseFielding      = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).fielding, 0);
-  const baseBonus         = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).bonus, 0);
-
-  // Capture Live Deltas for Grand Total aggregation when Combined
+  // ── Totals (Cache + Live Deltas) ──────────────────────────────────────────
+  
+  // Isolate the live deltas coming from current active players
   const liveDeltaBatting   = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).deltaBatting, 0);
   const liveDeltaBowling   = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).deltaBowling, 0);
   const liveDeltaFielding  = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).deltaFielding, 0);
   const liveDeltaBonus     = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).deltaBonus, 0);
   const liveDeltaTotal     = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).delta, 0);
 
-  const displayBatting = selectedView === "combined" ? grandTotals.batting + liveDeltaBatting : baseBatting;
-  const displayBowling = selectedView === "combined" ? grandTotals.bowling + liveDeltaBowling : baseBowling;
-  const displayFieldingBonus = selectedView === "combined" 
-    ? (grandTotals.fielding + grandTotals.bonus + liveDeltaFielding + liveDeltaBonus) 
-    : (baseFielding + baseBonus);
-  const displayTotalPoints = selectedView === "combined" ? grandTotals.total + liveDeltaTotal : baseTotalPoints;
+  // Top header numbers derived from Cache +/- Live Delta
+  const displayBatting = cachedStats.batting + liveDeltaBatting;
+  const displayBowling = cachedStats.bowling + liveDeltaBowling;
+  const displayFieldingBonus = (cachedStats.fielding + cachedStats.bonus) + (liveDeltaFielding + liveDeltaBonus);
+  const displayTotalPoints = cachedStats.total + liveDeltaTotal;
 
   // ── Apply substitution status ─────────────────────────────────────────────
   useEffect(() => {
@@ -417,11 +418,9 @@ export default function MyTeamPage() {
 
   // ── Button Render Logic ───────────────────────────────────────────────────
   
-  // 1. Pick Super 8 Team
   const super8Stage = stages.find(s => (s.stage_name || "").toLowerCase().includes("super"));
   const showPickSuper8 = super8Stage && !super8Stage.is_locked;
 
-  // 2. Make Substitution
   let showSubButton = activityState === "live"; 
   if (showSubButton) {
     const stageToCheck = selectedView === "combined" ? viewStage : stages.find(s => s.id === selectedView);
@@ -487,36 +486,36 @@ export default function MyTeamPage() {
               className="flex flex-col items-center justify-center bg-dark-500 rounded-lg p-3 sm:p-4 hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-primary-500"
               aria-label="View leaderboard"
             >
-              <div className="text-3xl sm:text-5xl font-bold text-primary-500 mb-1 sm:mb-2">
+              <div className="text-xl sm:text-3xl font-bold text-primary-500 mb-1 sm:mb-2">
                 {leaderboardPosition ? `#${leaderboardPosition}` : "—"}
               </div>
               <p className="text-xs sm:text-sm text-gray-400 text-center">Leaderboard</p>
             </button>
 
             <div className="flex flex-col items-center justify-center bg-dark-500 rounded-lg p-3 sm:p-4">
-              <div className="text-3xl sm:text-5xl font-bold text-primary-500 mb-1 sm:mb-2">
+              <div className="text-xl sm:text-3xl font-bold text-primary-500 mb-1 sm:mb-2">
                 {displayTotalPoints}
               </div>
               <p className="text-xs sm:text-sm text-gray-400 text-center">Points</p>
             </div>
 
             <div className="flex flex-col items-center justify-center bg-dark-500 rounded-lg p-3 sm:p-4">
-              <p className="text-3xl sm:text-5xl font-bold text-primary-500 mb-1 sm:mb-2">{substitutionsRemaining}</p>
+              <p className="text-xl sm:text-3xl font-bold text-primary-500 mb-1 sm:mb-2">{substitutionsRemaining}</p>
               <p className="text-xs sm:text-sm text-gray-400 text-center">Subs Left</p>
             </div>
 
             <div className="flex flex-col items-center justify-center bg-dark-500 rounded-lg p-3 sm:p-4">
-              <p className="text-3xl sm:text-5xl font-medium text-gray-400 mb-1 sm:mb-2">{displayBatting}</p>
+              <p className="text-xl sm:text-3xl font-medium text-gray-400 mb-1 sm:mb-2">{displayBatting}</p>
               <p className="text-xs sm:text-sm text-gray-400 text-center">Batting</p>
             </div>
 
             <div className="flex flex-col items-center justify-center bg-dark-500 rounded-lg p-3 sm:p-4">
-              <p className="text-3xl sm:text-5xl font-medium text-gray-400 mb-1 sm:mb-2">{displayBowling}</p>
+              <p className="text-xl sm:text-3xl font-medium text-gray-400 mb-1 sm:mb-2">{displayBowling}</p>
               <p className="text-xs sm:text-sm text-gray-400 text-center">Bowling</p>
             </div>
 
             <div className="flex flex-col items-center justify-center bg-dark-500 rounded-lg p-3 sm:p-4">
-              <p className="text-3xl sm:text-5xl font-medium text-gray-400 mb-1 sm:mb-2">{displayFieldingBonus}</p>
+              <p className="text-xl sm:text-3xl font-medium text-gray-400 mb-1 sm:mb-2">{displayFieldingBonus}</p>
               <p className="text-xs sm:text-sm text-gray-400 text-center">Fielding/Bonus</p>
             </div>
 

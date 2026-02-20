@@ -282,9 +282,9 @@ export default function Leaderboard() {
               )}
             </div>
 
-            <div className="flex items-center gap-3 ">
+             <div className="flex items-center gap-3 ">
               <div className="flex items-center gap-3 flex-wrap span-auto sm:span-full">
-                {/* Overall Button */}
+               {/*}
                 {allStages.length > 1 && (
                   <button
                     onClick={() => setSelectedStage(null)}
@@ -297,7 +297,8 @@ export default function Leaderboard() {
                     Overall
                   </button>
                 )}
-
+                 */} 
+              
                 {/* Dynamic Stage Buttons */}
                 {allStages.map((stage) => {
                   // Map 'Super8s' and 'Knockouts' to 'Super8s', otherwise keep the name

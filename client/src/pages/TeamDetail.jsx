@@ -24,6 +24,10 @@ export default function TeamDetail() {
   const [expandedPlayer, setExpandedPlayer] = useState(null);
   const [username, setUsername] = useState(null);
   const [leaderboardPosition, setLeaderboardPosition] = useState(null);
+  
+  // New state to hold baseline stats from the leaderboard cache
+  const [cachedStats, setCachedStats] = useState({ batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 });
+  
   const [isLive, setIsLive] = useState(true);
   const [livePlayerScores, setLivePlayerScores] = useState({});
 
@@ -102,16 +106,23 @@ export default function TeamDetail() {
         setUsername(userData.username);
       }
 
-      // Fetch leaderboard position
+      // Fetch leaderboard position and cached totals
       const { data: leaderboardData } = await supabase
         .from("tournament_leaderboard_cache")
-        .select("rank_position")
+        .select("rank_position, batting_total, bowling_total, fielding_total, bonus_total, total")
         .eq("team_id", teamId)
         .eq("tournament_id", tournamentId)
         .single();
 
       if (leaderboardData) {
         setLeaderboardPosition(leaderboardData.rank_position);
+        setCachedStats({
+          batting: Number(leaderboardData.batting_total || 0),
+          bowling: Number(leaderboardData.bowling_total || 0),
+          fielding: Number(leaderboardData.fielding_total || 0),
+          bonus: Number(leaderboardData.bonus_total || 0),
+          total: Number(leaderboardData.total || 0)
+        });
       }
 
       // 1. Fetch all team players from team_players table
@@ -175,8 +186,6 @@ export default function TeamDetail() {
         `)
         .eq("team_id", teamId)
         .eq("tournament_id", tournamentId);
-
-      console.debug("TeamDetail: player_performance_summary ->", performanceRes);
 
       // 3. Build performance map by player_id
       const performanceMap = {};
@@ -322,17 +331,26 @@ export default function TeamDetail() {
     };
   };
 
-  // Calculate team totals dynamically
-  const teamTotals = players.reduce((acc, p) => {
+  // Extract only the live deltas from active players
+  const liveDeltas = players.reduce((acc, p) => {
     const scores = getPlayerDisplayScore(p);
-    acc.total += scores.total;
-    acc.batting += scores.batting;
-    acc.bowling += scores.bowling;
-    acc.fielding += scores.fielding;
-    acc.bonus += scores.bonus;
-    acc.delta += scores.delta;
+    acc.batting += scores.deltaBatting;
+    acc.bowling += scores.deltaBowling;
+    acc.fielding += scores.deltaFielding;
+    acc.bonus += scores.deltaBonus;
+    acc.total += scores.delta;
     return acc;
-  }, { total: 0, batting: 0, bowling: 0, fielding: 0, bonus: 0, delta: 0 });
+  }, { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 });
+
+  // Add the live deltas directly to the cached baseline stats
+  const teamTotals = {
+    batting: cachedStats.batting + liveDeltas.batting,
+    bowling: cachedStats.bowling + liveDeltas.bowling,
+    fielding: cachedStats.fielding + liveDeltas.fielding,
+    bonus: cachedStats.bonus + liveDeltas.bonus,
+    total: cachedStats.total + liveDeltas.total,
+    delta: liveDeltas.total 
+  };
 
   const totalAppearances = players.reduce((acc, p) => acc + (p.scores?.length || 0), 0);
 
