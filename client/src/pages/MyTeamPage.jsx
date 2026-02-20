@@ -21,7 +21,12 @@ export default function MyTeamPage() {
 
   const navigate = useNavigate();
 
-  // ── Local state — all scoped to the viewStage team only ──────────────────
+  // ── Local state ───────────────────────────────────────────────────────────
+  const [stages, setStages] = useState([]);
+  const [selectedView, setSelectedView] = useState("combined"); // "combined" or stage.id
+  const [allMyTeamIds, setAllMyTeamIds] = useState([]);
+  const [grandTotals, setGrandTotals] = useState({ batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 });
+
   const [myTeamId, setMyTeamId] = useState(null);
   const [myTeamPlayers, setMyTeamPlayers] = useState([]);
   const [displayedPlayers, setDisplayedPlayers] = useState([]);
@@ -32,12 +37,64 @@ export default function MyTeamPage() {
   const [isLive, setIsLive] = useState(true);
   const [livePlayerScores, setLivePlayerScores] = useState({});
 
-  // ── Load the viewStage team directly from Supabase ────────────────────────
-  // Completely independent of context selectedPlayers / cache.
-  // viewStage is the currently active/locked stage — its team is the source of
-  // truth and never needs to be read from or written to localStorage.
+  // ── Fetch stages and all user teams (for combined totals) ─────────────────
   useEffect(() => {
-    if (!tournamentId || !viewStage?.id || !user) {
+    if (!tournamentId || !user?.id) return;
+
+    const fetchInitialData = async () => {
+      // Fetch tournament stages
+      const { data: stagesData } = await supabase
+        .from("tournament_stages")
+        .select("*")
+        .eq("tournament_id", tournamentId)
+        .order("id", { ascending: true }); // Keeping order predictable
+
+      if (stagesData) setStages(stagesData);
+
+      // Fetch all teams for user
+      const { data: teamsData } = await supabase
+        .from("teams")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("tournament_id", tournamentId);
+
+      if (teamsData) {
+        const teamIds = teamsData.map((t) => t.id);
+        setAllMyTeamIds(teamIds);
+
+        // Fetch grand historical totals if teamIds exist
+        if (teamIds.length > 0) {
+          const { data: performanceData } = await supabase
+            .from("player_performance_summary")
+            .select("batting, bowling, fielding, bonus, fantasy_total")
+            .in("team_id", teamIds);
+
+          if (performanceData) {
+            const totals = performanceData.reduce(
+              (acc, row) => {
+                acc.batting += row.batting || 0;
+                acc.bowling += row.bowling || 0;
+                acc.fielding += row.fielding || 0;
+                acc.bonus += row.bonus || 0;
+                acc.total += row.fantasy_total || 0;
+                return acc;
+              },
+              { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 }
+            );
+            setGrandTotals(totals);
+          }
+        }
+      }
+    };
+
+    fetchInitialData();
+  }, [tournamentId, user]);
+
+  // ── Load the selected stage team directly from Supabase ───────────────────
+  useEffect(() => {
+    const targetStageId = selectedView === "combined" ? viewStage?.id : selectedView;
+    
+    if (!tournamentId || !targetStageId || !user) {
       setMyTeamId(null);
       setMyTeamPlayers([]);
       return;
@@ -50,7 +107,7 @@ export default function MyTeamPage() {
           .select("id, team_name")
           .eq("user_id", user.id)
           .eq("tournament_id", tournamentId)
-          .eq("stage_id", viewStage.id)
+          .eq("stage_id", targetStageId)
           .maybeSingle();
 
         if (teamError) {
@@ -96,14 +153,13 @@ export default function MyTeamPage() {
           .filter(Boolean);
 
         setMyTeamPlayers(players);
-        const captainId = players.find((p) => p.is_captain && !p.is_substituted)?.id;
       } catch (e) {
         console.error("Exception loading viewStage team:", e);
       }
     };
 
     loadViewStageTeam();
-  }, [tournamentId, viewStage?.id, user]);
+  }, [tournamentId, selectedView, viewStage?.id, user]);
 
   const sourcePlayers = displayedPlayers.length ? displayedPlayers : myTeamPlayers;
   const captainId = sourcePlayers.find((p) => p.is_captain && !p.is_substituted)?.id;
@@ -128,12 +184,20 @@ export default function MyTeamPage() {
     async function fetchPlayerPerformance() {
       try {
         const playerIds = displayedPlayers.map((p) => p.id);
-        const { data, error } = await supabase
+        let query = supabase
           .from("player_performance_summary")
           .select("player_id, batting, bowling, fielding, bonus, fantasy_total")
           .in("player_id", playerIds)
-          .eq("tournament_id", tournamentId)
-          .eq("team_id", myTeamId);
+          .eq("tournament_id", tournamentId);
+
+        // If 'combined', pull scores for these players across ALL user teams
+        if (selectedView === "combined" && allMyTeamIds.length > 0) {
+          query = query.in("team_id", allMyTeamIds);
+        } else {
+          query = query.eq("team_id", myTeamId);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           console.error("Error fetching player performance:", error);
@@ -160,7 +224,7 @@ export default function MyTeamPage() {
     }
 
     fetchPlayerPerformance();
-  }, [displayedPlayers, tournamentId, myTeamId]);
+  }, [displayedPlayers, tournamentId, myTeamId, selectedView, allMyTeamIds]);
 
   // ── Fetch live scores ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -241,15 +305,14 @@ export default function MyTeamPage() {
     const base = playerScores[playerId] || { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 };
     const live = livePlayerScores[playerId] || { batting: 0, bowling: 0, fielding: 0, bonus: 0, total: 0 };
 
-
     if (!isLive) return { 
       batting: (base.batting || 0),
       bowling: (base.bowling || 0),
       fielding: (base.fielding || 0),
       bonus: (base.bonus || 0),
       total: (base.total || 0),
-      delta: 0, deltaBatting: 0, deltaBowling: 0, deltaFielding: 0, deltaBonus: 0 };
-
+      delta: 0, deltaBatting: 0, deltaBowling: 0, deltaFielding: 0, deltaBonus: 0 
+    };
 
     return {
       batting: (base.batting || 0) + (live.batting * multiplier),
@@ -266,13 +329,25 @@ export default function MyTeamPage() {
   };
 
   // ── Totals ────────────────────────────────────────────────────────────────
-  
+  const baseTotalPoints   = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).total, 0);
+  const baseBatting       = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).batting, 0);
+  const baseBowling       = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).bowling, 0);
+  const baseFielding      = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).fielding, 0);
+  const baseBonus         = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).bonus, 0);
 
-  const totalPoints   = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).total, 0);
-  const battingTotal  = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).batting, 0);
-  const bowlingTotal  = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).bowling, 0);
-  const fieldingTotal = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).fielding, 0);
-  const bonusTotal    = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).bonus, 0);
+  // Capture Live Deltas for Grand Total aggregation when Combined
+  const liveDeltaBatting   = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).deltaBatting, 0);
+  const liveDeltaBowling   = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).deltaBowling, 0);
+  const liveDeltaFielding  = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).deltaFielding, 0);
+  const liveDeltaBonus     = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).deltaBonus, 0);
+  const liveDeltaTotal     = sourcePlayers.reduce((sum, p) => sum + getDisplayScore(p.id).delta, 0);
+
+  const displayBatting = selectedView === "combined" ? grandTotals.batting + liveDeltaBatting : baseBatting;
+  const displayBowling = selectedView === "combined" ? grandTotals.bowling + liveDeltaBowling : baseBowling;
+  const displayFieldingBonus = selectedView === "combined" 
+    ? (grandTotals.fielding + grandTotals.bonus + liveDeltaFielding + liveDeltaBonus) 
+    : (baseFielding + baseBonus);
+  const displayTotalPoints = selectedView === "combined" ? grandTotals.total + liveDeltaTotal : baseTotalPoints;
 
   // ── Apply substitution status ─────────────────────────────────────────────
   useEffect(() => {
@@ -323,7 +398,7 @@ export default function MyTeamPage() {
   }, [myTeamPlayers, myTeamId]);
 
   // ── Sort players: captain first, then active, then substituted out ────────
-  const activePlayers       = sourcePlayers.filter((p) => !p.is_substituted);
+  const activePlayers = sourcePlayers.filter((p) => !p.is_substituted);
   const substitutedOutPlayers = sourcePlayers.filter((p) => p.is_substituted);
 
   const sortedActivePlayers = [...activePlayers].sort((a, b) => {
@@ -340,6 +415,26 @@ export default function MyTeamPage() {
     navigate(`/player/${playerId}`);
   };
 
+  // ── Button Render Logic ───────────────────────────────────────────────────
+  
+  // 1. Pick Super 8 Team
+  const super8Stage = stages.find(s => (s.stage_name || "").toLowerCase().includes("super"));
+  const showPickSuper8 = super8Stage && !super8Stage.is_locked;
+
+  // 2. Make Substitution
+  let showSubButton = activityState === "live"; 
+  if (showSubButton) {
+    const stageToCheck = selectedView === "combined" ? viewStage : stages.find(s => s.id === selectedView);
+    if (stageToCheck) {
+      const stageName = (stageToCheck.stage_name || "").toLowerCase();
+      if (stageName.includes("group")) {
+        showSubButton = new Date() <= new Date(stageToCheck.ends_at);
+      } else if (stageName.includes("super")) {
+        showSubButton = stageToCheck.is_locked === true;
+      }
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-dark-500 text-white py-4 md:py-8">
@@ -353,6 +448,18 @@ export default function MyTeamPage() {
                 {teamName || "Your Team"}
               </h1>
               <div className="flex items-center gap-3">
+                <select
+                  value={selectedView}
+                  onChange={(e) => setSelectedView(e.target.value)}
+                  className="bg-dark-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium border border-gray-600 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                >
+                  <option value="combined">Combined View</option>
+                  {stages.map((stage) => (
+                    <option key={stage.id} value={stage.id}>
+                      {stage.stage_name}
+                    </option>
+                  ))}
+                </select>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-300">Live</span>
                   <button
@@ -388,7 +495,7 @@ export default function MyTeamPage() {
 
             <div className="flex flex-col items-center justify-center bg-dark-500 rounded-lg p-3 sm:p-4">
               <div className="text-3xl sm:text-5xl font-bold text-primary-500 mb-1 sm:mb-2">
-                {totalPoints}
+                {displayTotalPoints}
               </div>
               <p className="text-xs sm:text-sm text-gray-400 text-center">Points</p>
             </div>
@@ -399,28 +506,30 @@ export default function MyTeamPage() {
             </div>
 
             <div className="flex flex-col items-center justify-center bg-dark-500 rounded-lg p-3 sm:p-4">
-              <p className="text-3xl sm:text-5xl font-medium text-gray-400 mb-1 sm:mb-2">{battingTotal}</p>
+              <p className="text-3xl sm:text-5xl font-medium text-gray-400 mb-1 sm:mb-2">{displayBatting}</p>
               <p className="text-xs sm:text-sm text-gray-400 text-center">Batting</p>
             </div>
 
             <div className="flex flex-col items-center justify-center bg-dark-500 rounded-lg p-3 sm:p-4">
-              <p className="text-3xl sm:text-5xl font-medium text-gray-400 mb-1 sm:mb-2">{bowlingTotal}</p>
+              <p className="text-3xl sm:text-5xl font-medium text-gray-400 mb-1 sm:mb-2">{displayBowling}</p>
               <p className="text-xs sm:text-sm text-gray-400 text-center">Bowling</p>
             </div>
 
             <div className="flex flex-col items-center justify-center bg-dark-500 rounded-lg p-3 sm:p-4">
-              <p className="text-3xl sm:text-5xl font-medium text-gray-400 mb-1 sm:mb-2">{fieldingTotal + bonusTotal}</p>
+              <p className="text-3xl sm:text-5xl font-medium text-gray-400 mb-1 sm:mb-2">{displayFieldingBonus}</p>
               <p className="text-xs sm:text-sm text-gray-400 text-center">Fielding/Bonus</p>
             </div>
 
-            <div className="col-span-3 mt-2">
-              <button
-                onClick={() => navigate("/team")}
-                className="px-4 sm:px-6 py-2 sm:py-3 rounded-full text-black text-sm sm:text-base font-semibold transition-colors bg-primary-500 hover:bg-primary-600"
-              >
-                Pick Super 8 Team
-              </button>
-            </div>
+            {showPickSuper8 && (
+              <div className="col-span-3 mt-2 flex justify-center">
+                <button
+                  onClick={() => navigate("/team")}
+                  className="px-4 sm:px-6 py-2 sm:py-3 rounded-full text-black text-sm sm:text-base font-semibold transition-colors bg-primary-500 hover:bg-primary-600"
+                >
+                  Pick Super 8 Team
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -435,8 +544,7 @@ export default function MyTeamPage() {
               <p className="text-gray-400 mb-3">No players selected yet</p>
               {viewStage && (
                 <p className="text-sm text-gray-500 mb-4">
-                  You don't have a team for{" "}
-                  <span className="font-semibold text-primary-500">{viewStage.stage_name}</span>
+                  You don't have a team for this view.
                 </p>
               )}
               <button
@@ -683,7 +791,7 @@ export default function MyTeamPage() {
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center sm:justify-end">
-          {activityState === "live" && (
+          {showSubButton && (
             <button
               onClick={() => setIsSubstitutionModalOpen(true)}
               disabled={substitutionsRemaining === 0}

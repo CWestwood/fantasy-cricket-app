@@ -25,6 +25,10 @@ const Header = ({ onNavigate }) => {
           <h1 className="text-md font-bold text-primary-500 whitespace-nowrap">
             Mad Cricket World Cup
           </h1>
+
+          <h2 className="text-sm font-bold text-red-600 whitespace-nowrap">
+            Super8s and Knockouts
+          </h2>
         </div>
 
         {/* Right: User Profile */}

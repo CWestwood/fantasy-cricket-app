@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiChevronDown, FiSearch } from "react-icons/fi";
 import { supabase } from "../utils/supabaseClient";
@@ -27,7 +27,6 @@ const formatScore = (value) => {
   return Math.round(number).toLocaleString();
 };
 
-
 const PlayerStats = () => {
   const { tournamentId } = useTeam();
   const navigate = useNavigate();
@@ -37,13 +36,15 @@ const PlayerStats = () => {
   const [expandedPlayerId, setExpandedPlayerId] = useState(null);
   const [selectedRoles, setSelectedRoles] = useState(new Set());
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Stages state
+  const [stages, setStages] = useState([]);
+  const [selectedStage, setSelectedStage] = useState("combined");
 
   const roles = ["batter", "bowler", "allrounder", "wicketkeeper"];
 
-  // Simple in-memory cache (module-level) for playerRows per tournament
-  // Cache TTL in ms
+  // Simple in-memory cache
   const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-  // store as { timestamp, rows }
   if (!window.__playerStatsCache) window.__playerStatsCache = new Map();
   const statsCache = window.__playerStatsCache;
 
@@ -59,12 +60,21 @@ const PlayerStats = () => {
     });
   };
 
-  const filteredPlayerRows = playerRows.filter((row) => {
-    const matchesRole = selectedRoles.size === 0 || selectedRoles.has(row.role.toLowerCase());
-    const matchesSearch = !searchTerm.trim() || (row.playerName || "").toLowerCase().includes(searchTerm.toLowerCase()) || (row.teamName || "").toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesRole && matchesSearch;
-  });
+  // 1. Fetch Stages separately so the dropdown populates even on a cache hit
+  useEffect(() => {
+    if (!tournamentId) return;
+    const fetchStages = async () => {
+      const { data } = await supabase
+        .from("tournament_stages")
+        .select("*")
+        .eq("tournament_id", tournamentId)
+        .order("id", { ascending: true });
+      if (data) setStages(data);
+    };
+    fetchStages();
+  }, [tournamentId]);
 
+  // 2. Fetch Player Stats
   useEffect(() => {
     let mounted = true;
 
@@ -78,9 +88,11 @@ const PlayerStats = () => {
       setLoading(true);
       setError("");
 
+      const cacheKey = `playerStats_v2:${tournamentId}`;
+
       // Try cache first (in-memory)
       try {
-        const cacheEntry = statsCache.get(tournamentId);
+        const cacheEntry = statsCache.get(cacheKey);
         if (cacheEntry && Date.now() - cacheEntry.timestamp < CACHE_TTL) {
           setPlayerRows(cacheEntry.rows);
           setLoading(false);
@@ -88,34 +100,42 @@ const PlayerStats = () => {
         }
 
         // Try sessionStorage fallback
-        const ssKey = `playerStats:${tournamentId}`;
-        const ssRaw = sessionStorage.getItem(ssKey);
+        const ssRaw = sessionStorage.getItem(cacheKey);
         if (ssRaw) {
           const parsed = JSON.parse(ssRaw);
           if (parsed?.timestamp && Date.now() - parsed.timestamp < CACHE_TTL && parsed.rows) {
-            statsCache.set(tournamentId, { timestamp: parsed.timestamp, rows: parsed.rows });
+            statsCache.set(cacheKey, { timestamp: parsed.timestamp, rows: parsed.rows });
             setPlayerRows(parsed.rows);
             setLoading(false);
             return;
           }
         }
       } catch (e) {
-        // ignore cache errors
         console.warn("PlayerStats cache read error", e);
       }
 
       try {
+        // Fetch players
         const playersRes = await supabase
           .from("squads")
           .select("id, name, role, team_name")
           .eq("tournament_id", tournamentId)
           .order("name", { ascending: true });
 
-        if (playersRes.error) {
-          throw playersRes.error;
-        }
+        if (playersRes.error) throw playersRes.error;
 
-        // Fetch pick counts separately since the new view doesn't include team/user data
+        // Map Match IDs to Stage IDs (fallback in case the view lacks stage_id)
+        const matchesRes = await supabase
+          .from("matches")
+          .select("id, stage_id")
+          .eq("tournament_id", tournamentId);
+        
+        const matchStageMap = {};
+        matchesRes.data?.forEach(m => {
+          matchStageMap[m.id] = m.stage_id;
+        });
+
+        // Fetch Pick Counts
         const { data: teamsData } = await supabase
           .from("teams")
           .select("id")
@@ -134,16 +154,15 @@ const PlayerStats = () => {
           });
         }
 
+        // Fetch Performance
         const perfRes = await supabase
           .from("tournament_player_performance")
           .select(
-            "player_id, match_id, match_name, match_date, match_status, batting, bowling, fielding, bonus, fantasy_total"
+            "player_id, match_id, match_name, match_date, match_status, batting, bowling, fielding, bonus, fantasy_total, stage_id"
           )
           .eq("tournament_id", tournamentId);
 
-        if (perfRes.error) {
-          throw perfRes.error;
-        }
+        if (perfRes.error) throw perfRes.error;
 
         if (!mounted) return;
 
@@ -176,13 +195,14 @@ const PlayerStats = () => {
                 matchName: row.match_name,
                 matchDate: row.match_date,
                 matchStatus: row.match_status,
+                stageId: row.stage_id || matchStageMap[row.match_id], // Inject Stage ID
                 batting: row.batting,
                 bowling: row.bowling,
                 fielding: row.fielding,
                 bonus: row.bonus,
                 score: row.fantasy_total,
               });
-              // Only count scores once per match, not once per team the player is in
+              
               stats.batting += Number(row.batting) || 0;
               stats.bowling += Number(row.bowling) || 0;
               stats.fielding += Number(row.fielding) || 0;
@@ -228,14 +248,10 @@ const PlayerStats = () => {
         });
 
         rows.sort((a, b) => b.totalScore - a.totalScore);
-        // store to cache
+        
         try {
-          statsCache.set(tournamentId, { timestamp: Date.now(), rows });
-          try {
-            sessionStorage.setItem(`playerStats:${tournamentId}`, JSON.stringify({ timestamp: Date.now(), rows }));
-          } catch (e) {
-            // ignore storage errors
-          }
+          statsCache.set(cacheKey, { timestamp: Date.now(), rows });
+          sessionStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), rows }));
         } catch (e) {
           // ignore
         }
@@ -258,7 +274,46 @@ const PlayerStats = () => {
     };
   }, [tournamentId]);
 
-  const statsWithMatchData = playerRows.filter((row) => (row.matchLog || []).length > 0).length;
+  // 3. Dynamically Calculate Stats based on Selected Stage
+  const computedPlayerRows = useMemo(() => {
+    const rows = playerRows.map(row => {
+      if (selectedStage === "combined") {
+        return row; 
+      }
+      
+      let batting = 0, bowling = 0, fielding = 0, bonus = 0, totalScore = 0;
+      let matchesPlayed = 0;
+      
+      (row.matchLog || []).forEach(m => {
+        if (String(m.stageId) === String(selectedStage)) {
+          batting += Number(m.batting) || 0;
+          bowling += Number(m.bowling) || 0;
+          fielding += Number(m.fielding) || 0;
+          bonus += Number(m.bonus) || 0;
+          totalScore += Number(m.score) || 0;
+          matchesPlayed++;
+        }
+      });
+      
+      return {
+        ...row,
+        batting, bowling, fielding, bonus, totalScore, matchesPlayed
+      };
+    });
+
+    return rows.sort((a, b) => b.totalScore - a.totalScore);
+  }, [playerRows, selectedStage]);
+
+  // 4. Filter for Search & Roles
+  const filteredPlayerRows = computedPlayerRows.filter((row) => {
+    const matchesRole = selectedRoles.size === 0 || selectedRoles.has(row.role.toLowerCase());
+    const matchesSearch = !searchTerm.trim() || 
+      (row.playerName || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (row.teamName || "").toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesRole && matchesSearch;
+  });
+
+  const statsWithMatchData = computedPlayerRows.filter((row) => row.matchesPlayed > 0).length;
 
   if (!tournamentId) {
     return (
@@ -280,69 +335,85 @@ const PlayerStats = () => {
   return (
     <div className="min-h-screen bg-dark-500 text-white pb-20">
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        <div className="bg-card-light rounded-2xl shadow-card p-5 space-y-3">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div className="bg-card-light rounded-2xl shadow-card p-5 space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Insights</p>
               <h1 className="text-2xl sm:text-3xl font-bold text-primary-500">Player Stats</h1>
             </div>
-            <div className="text-sm text-gray-300">
-              <p>{filteredPlayerRows.length} player{filteredPlayerRows.length === 1 ? "" : "s"}</p>
-              <p>{statsWithMatchData} with match data</p>
+            
+            {/* Stage Selector and Meta Counts */}
+            <div className="flex flex-col sm:items-end gap-2">
+              <select
+                value={selectedStage}
+                onChange={(e) => setSelectedStage(e.target.value)}
+                className="bg-dark-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium border border-gray-600 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+              >
+                <option value="combined">Combined View</option>
+                {stages.map((stage) => (
+                  <option key={stage.id} value={stage.id}>
+                    {stage.stage_name}
+                  </option>
+                ))}
+              </select>
+              <div className="text-sm text-gray-300 flex sm:flex-col justify-between sm:justify-end gap-4 sm:gap-0">
+                <p>{filteredPlayerRows.length} player{filteredPlayerRows.length === 1 ? "" : "s"}</p>
+                <p>{statsWithMatchData} with match data</p>
+              </div>
             </div>
           </div>
 
           {/* Role Filter with icons */}
-            <div className="flex justify-center gap-5 flex-wrap items-center pt-2">
+          <div className="flex justify-center gap-5 flex-wrap items-center pt-2">
             {roles.map((role) => {
-                const iconSrc = roleIconMap[role];
-                const isSelected = selectedRoles.has(role);
-                
-                return (
+              const iconSrc = roleIconMap[role];
+              const isSelected = selectedRoles.has(role);
+              
+              return (
                 <button
-                    key={role}
-                    onClick={() => toggleRole(role)}
-                    className={`relative p-3 rounded-lg items-center transition-all transform hover:scale-105 ${
+                  key={role}
+                  onClick={() => toggleRole(role)}
+                  className={`relative p-3 rounded-lg items-center transition-all transform hover:scale-105 ${
                     isSelected
-                        ? "bg-primary-500 border-2 border-primary-400 shadow-lg"
-                        : "bg-dark-700/50 border-2 border-gray-600 hover:border-gray-400 hover:bg-dark-600"
-                    }`}
-                    title={role.charAt(0).toUpperCase() + role.slice(1)}
+                      ? "bg-primary-500 border-2 border-primary-400 shadow-lg"
+                      : "bg-dark-700/50 border-2 border-gray-600 hover:border-gray-400 hover:bg-dark-600"
+                  }`}
+                  title={role.charAt(0).toUpperCase() + role.slice(1)}
                 >
-                    <img 
+                  <img 
                     src={iconSrc} 
                     alt={role}
                     className={`w-7 h-7 transition-all ${
-                        isSelected ? "opacity-100 brightness-110" : "opacity-50 brightness-75"
+                      isSelected ? "opacity-100 brightness-110" : "opacity-50 brightness-75"
                     }`}
-                    />
-                    {isSelected && (
+                  />
+                  {isSelected && (
                     <div className="absolute -top-1 -right-1 bg-green-500 rounded-full w-4 h-4 flex items-center justify-center">
-                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
+                      </svg>
                     </div>
-                    )}
+                  )}
                 </button>
-                );
+              );
             })}
-            </div>
+          </div>
 
-            {/* Search Bar */}
-            <div className="pt-2 max-w-md mx-auto w-full">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiSearch className="text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search player or team..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-dark-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
-                />
+          {/* Search Bar */}
+          <div className="pt-2 max-w-md mx-auto w-full">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FiSearch className="text-gray-400" />
               </div>
+              <input
+                type="text"
+                placeholder="Search player or team..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-lg bg-dark-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
+              />
             </div>
+          </div>
         </div>
 
         <div className="bg-card-light rounded-2xl shadow-card p-4 space-y-4">
@@ -361,6 +432,10 @@ const PlayerStats = () => {
 
             {filteredPlayerRows.map((row) => {
               const isExpanded = expandedPlayerId === row.playerId;
+              const visibleMatchLog = selectedStage === "combined" 
+                ? row.matchLog 
+                : (row.matchLog || []).filter(m => String(m.stageId) === String(selectedStage));
+
               return (
                 <div
                   key={`${row.playerId}-mobile`}
@@ -368,22 +443,22 @@ const PlayerStats = () => {
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex-shrink-0">
-                    {(() => {
+                      {(() => {
                         const iconSrc = getRoleIcon(row.role);
                         return iconSrc ? (
-                        <img src={iconSrc} alt={row.role} className="h-8 w-8" />
+                          <img src={iconSrc} alt={row.role} className="h-8 w-8" />
                         ) : (
-                        <span className="text-xs uppercase tracking-[0.3em] text-gray-400">
+                          <span className="text-xs uppercase tracking-[0.3em] text-gray-400">
                             {row.role?.slice(0, 3) || "—"}
-                        </span>
+                          </span>
                         );
-                    })()}
+                      })()}
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <button
                         type="button"
                         onClick={() => navigate(`/player/${row.playerId}`)}
-                        className="text-sm font-semibold text-white hover:text-primary-400"
+                        className="text-sm font-semibold text-white hover:text-primary-400 truncate w-full text-left"
                       >
                         {row.playerName}
                       </button>
@@ -430,10 +505,10 @@ const PlayerStats = () => {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        {(row.matchLog || []).length === 0 ? (
-                          <div className="text-xs text-gray-400">No match data yet.</div>
+                        {visibleMatchLog.length === 0 ? (
+                          <div className="text-xs text-gray-400">No match data for this view.</div>
                         ) : (
-                          row.matchLog.map((match, idx) => (
+                          visibleMatchLog.map((match, idx) => (
                             <div
                               key={`${row.playerId}-${match.matchId ?? idx}`}
                               className="bg-dark-700 rounded-xl border border-gray-800 p-2"
@@ -478,17 +553,17 @@ const PlayerStats = () => {
           <div className="hidden sm:block overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
-                <tr className="text-xs uppercase tracking-[0.2em] text-gray-400">
-                  <th className="px-3 py-2 w-32">Player</th>
-                  <th className="px-3 py-2 text-center"></th>
-                  <th className="px-3 py-2">Team</th>
-                  <th className="px-3 py-2 text-center">Matches</th>
-                  <th className="px-3 py-2 text-center">Total</th>
-                  <th className="px-3 py-2 text-center">Batting</th>
-                  <th className="px-3 py-2 text-center">Bowling</th>
-                  <th className="px-3 py-2 text-center">Fielding</th>
-                  <th className="px-3 py-2 text-center">Bonus</th>
-                  <th className="px-3 py-2 text-center">Teams Picked</th>
+                <tr className="text-xs uppercase tracking-[0.2em] text-gray-400 border-b border-gray-700">
+                  <th className="px-3 py-3 w-48">Player</th>
+                  <th className="px-3 py-3 text-center"></th>
+                  <th className="px-3 py-3">Team</th>
+                  <th className="px-3 py-3 text-center">Matches</th>
+                  <th className="px-3 py-3 text-center">Total</th>
+                  <th className="px-3 py-3 text-center">Batting</th>
+                  <th className="px-3 py-3 text-center">Bowling</th>
+                  <th className="px-3 py-3 text-center">Fielding</th>
+                  <th className="px-3 py-3 text-center">Bonus</th>
+                  <th className="px-3 py-3 text-center">Teams Picked</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
@@ -506,29 +581,29 @@ const PlayerStats = () => {
                   </tr>
                 ) : (
                   filteredPlayerRows.map((row) => (
-                    <tr key={row.playerId} className="hover:bg-dark-600 transition-colors cursor-pointer">
+                    <tr key={row.playerId} className="hover:bg-dark-600 transition-colors">
                       <td className="px-3 py-3 w-48">
                         <button
                           type="button"
                           onClick={() => navigate(`/player/${row.playerId}`)}
-                          className="text-left text-sm font-semibold text-white hover:text-primary-400"
+                          className="text-left text-sm font-semibold text-white hover:text-primary-400 w-full truncate"
                         >
                           {row.playerName}
                         </button>
-                        <p className="text-xs text-gray-500">{row.teamName}</p>
+                        <p className="text-xs text-gray-500 truncate">{row.teamName}</p>
                       </td>
                       <td className="px-3 py-3 text-center">
                         {(() => {
-                            const iconSrc = getRoleIcon(row.role);
-                            return iconSrc ? (
+                          const iconSrc = getRoleIcon(row.role);
+                          return iconSrc ? (
                             <img src={iconSrc} alt={row.role} className="mx-auto h-6 w-6" />
-                            ) : (
+                          ) : (
                             <span className="text-xs uppercase tracking-[0.3em] text-gray-400">
-                                {row.role?.slice(0, 3) || "—"}
+                              {row.role?.slice(0, 3) || "—"}
                             </span>
-                            );
+                          );
                         })()}
-                        </td>
+                      </td>
                       <td className="px-3 py-3 max-w-[120px] text-sm text-gray-300 truncate">
                         {row.teamName}
                       </td>

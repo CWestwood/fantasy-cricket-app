@@ -13,6 +13,9 @@ export default function Schedule() {
   const [locations, setLocations] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
+  
+  // Track if we've performed the initial scroll
+  const [hasScrolled, setHasScrolled] = useState(false);
 
   useEffect(() => {
     if (!tournamentId) {
@@ -33,8 +36,6 @@ export default function Schedule() {
         .select("*")
         .eq("tournament_id", tournamentId)
         .order("match_time", { ascending: true });
-
-      console.debug("Schedule: matches ->", res);
 
       if (res.error) {
         console.error("Query error", res.error);
@@ -88,11 +89,43 @@ export default function Schedule() {
     setFilteredMatches(filtered);
   }, [selectedTeam, selectedLocation, matches]);
 
+  // Auto-scroll to today's or the next closest match on initial load
+  useEffect(() => {
+    if (!loading && filteredMatches.length > 0 && !hasScrolled) {
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      // Since matches are sorted ascending, find the first match >= startOfToday
+      const targetMatch = filteredMatches.find(
+        (m) => new Date(m.match_time) >= startOfToday
+      );
+
+      // Fallback to the last match if all matches are in the past
+      const matchToScroll = targetMatch || filteredMatches[filteredMatches.length - 1];
+
+      if (matchToScroll) {
+        // Use a small timeout to ensure the DOM has fully painted the list
+        setTimeout(() => {
+          const mobileEl = document.getElementById(`mobile-match-${matchToScroll.id}`);
+          const desktopEl = document.getElementById(`desktop-match-${matchToScroll.id}`);
+
+          // Check which layout is currently visible based on screen size, then scroll
+          if (mobileEl && window.getComputedStyle(mobileEl).display !== "none") {
+            mobileEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          } else if (desktopEl && window.getComputedStyle(desktopEl).display !== "none") {
+            desktopEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+          
+          setHasScrolled(true);
+        }, 100);
+      }
+    }
+  }, [loading, filteredMatches, hasScrolled]);
+
   const formatMatchTime = (isoString) => {
     if (!isoString) return "TBD";
     try {
       const date = new Date(isoString);
-      // Use toLocaleString to convert to user's timezone
       return date.toLocaleString("en-US", {
         weekday: "long",
         day: "numeric",
@@ -118,10 +151,6 @@ export default function Schedule() {
       default:
         return "bg-gray-700/30 text-gray-300 border-gray-600";
     }
-  };
-
-  const getTeamColor = (teamName) => {
-    return `bg-gradient-to-br ${TEAM_COLORS_gradient[teamName] || "from-gray-600/70 to-gray-700/70"}`;
   };
 
   const getTwoToneStyle = (team1, team2) => {
@@ -222,36 +251,32 @@ export default function Schedule() {
                 {filteredMatches.map((match) => (
                   <div
                     key={match.id}
+                    id={`mobile-match-${match.id}`}
                     className="rounded-lg p-4 border-l-4 border-primary-500 shadow-md"
                     style={getTwoToneStyle(match.team1, match.team2)}
                   >
                     <div className="space-y-2">
                       <div>
-                       
                         <div className="font-semibold text-sm">
                           {match.team1 || "TBD"} vs {match.team2 || "TBD"}
                         </div>
                       </div>
-
                       <div>
-                        
                         <div className="text-sm text-white/90">
                           {match.location || "Location TBD"}
                         </div>
                       </div>
-
                       <div>
-                        
                         <div className="text-sm text-white/90">
                           {formatMatchTime(match.match_time)}
                         </div>
                       </div>
-                        <div
-                          className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(match.status)}`}
-                        >
-                          {match.match_note || "Scheduled"}
-                        </div>
+                      <div
+                        className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(match.status)}`}
+                      >
+                        {match.match_note || "Scheduled"}
                       </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -260,7 +285,7 @@ export default function Schedule() {
               <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="text-centre text-sm text-gray-300 border-b border-gray-600">
+                    <tr className="text-left text-sm text-gray-300 border-b border-gray-600">
                       <th className="py-3 px-4">Teams</th>
                       <th className="py-3 px-4">Location</th>
                       <th className="py-3 px-4">Match Time</th>
@@ -271,6 +296,7 @@ export default function Schedule() {
                     {filteredMatches.map((match) => (
                       <tr
                         key={match.id}
+                        id={`desktop-match-${match.id}`}
                         className="border-b border-gray-700 hover:opacity-90 transition-opacity border-l-4 border-primary-500"
                         style={getTwoToneStyle(match.team1, match.team2)}
                       >
