@@ -284,7 +284,7 @@ export default function Leaderboard() {
 
              <div className="flex items-center gap-3 ">
               <div className="flex items-center gap-3 flex-wrap span-auto sm:span-full">
-               {/*}
+              
                 {allStages.length > 1 && (
                   <button
                     onClick={() => setSelectedStage(null)}
@@ -297,7 +297,7 @@ export default function Leaderboard() {
                     Overall
                   </button>
                 )}
-                 */} 
+                 
               
                 {/* Dynamic Stage Buttons */}
                 {allStages.map((stage) => {
