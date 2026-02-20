@@ -451,9 +451,9 @@ export default function MyTeamPage() {
                 <select
                   value={selectedView}
                   onChange={(e) => setSelectedView(e.target.value)}
-                  className="bg-dark-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium border border-gray-600 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                  className="bg-dark-600 text-gray-400 text-center rounded-lg px-3 py-1.5 text-sm font-medium border border-gray-600 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                 >
-                  <option value="combined">Combined View</option>
+                  <option value="combined">Combined</option>
                   {stages.map((stage) => (
                     <option key={stage.id} value={stage.id}>
                       {stage.stage_name}

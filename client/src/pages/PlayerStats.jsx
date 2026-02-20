@@ -347,7 +347,7 @@ const PlayerStats = () => {
               <select
                 value={selectedStage}
                 onChange={(e) => setSelectedStage(e.target.value)}
-                className="bg-dark-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium border border-gray-600 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                className="bg-dark-600 text-gray-400 text-center rounded-lg px-3 py-1.5 text-sm font-medium border border-gray-600 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
               >
                 <option value="combined">Combined View</option>
                 {stages.map((stage) => (
@@ -410,7 +410,7 @@ const PlayerStats = () => {
                 placeholder="Search player or team..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-lg bg-dark-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
+                className=" text-sm text-center w-full pl-10 pr-4 py-2 rounded-lg bg-dark-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
               />
             </div>
           </div>
