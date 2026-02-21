@@ -213,21 +213,22 @@ export const TeamProvider = ({ children }) => {
       setSubsAllocated(null);
       
       // ── Fetch settings inline so stageSettings state is not a dependency ──
-      const{ data:pickingstage } = await supabase
-        .from("tournament_stages")
-        .select("id")
-        .eq("tournament_id", tournamentId)
-        .eq("is_locked", false)
-        .single()
-      
       const { data: settingsData } = await supabase
         .from("tournament_settings")
         .select("max_country, max_subs")
-        .eq("stage_id", pickingstage.id)
+        .eq("stage_id", activeStage.id)
         .eq("tournament_id", tournamentId)
         .maybeSingle();
 
-      const maxSubs =  3;
+      const { data: quotaData } = await supabase
+        .from("stage_subs_quotas")
+        .select("subs_allocated, subs_used")
+        .eq("tournament_id", tournamentId)
+        .eq("user_id", user.id)
+        .eq("stage_id", activeStage.id)
+        .maybeSingle();
+
+      const maxSubs = quotaData ? quotaData.subs_allocated : (settingsData?.max_subs ?? 3);
 
       // Publish to state so consumers (substitution UI etc.) can read it
       if (settingsData) setStageSettings(settingsData);
@@ -289,6 +290,14 @@ export const TeamProvider = ({ children }) => {
           setCaptain(null);
         }
 
+        if (quotaData) {
+          setSubstitutionsRemaining(Math.max(0, quotaData.subs_allocated - quotaData.subs_used));
+          setSubsAllocated(quotaData.subs_allocated);
+        } else {
+          setSubstitutionsRemaining(maxSubs);
+          setSubsAllocated(maxSubs);
+        }
+
         setTeamLoaded(true);
         setLoading(false);
         return;
@@ -314,7 +323,23 @@ export const TeamProvider = ({ children }) => {
           setTeamStageId(activeStage.id); 
           setIsTeamLocked(Boolean(teamData.is_locked));
           
+          if (quotaData) {
+            setSubstitutionsRemaining(Math.max(0, quotaData.subs_allocated - quotaData.subs_used));
+            setSubsAllocated(quotaData.subs_allocated);
+          } else {
+            setSubstitutionsRemaining(Math.max(0, maxSubs - (teamData.subs_used || 0)));
+            setSubsAllocated(maxSubs);
+          }
+
           if (pickableStage && viewStage && pickableStage.id !== viewStage.id) {
+            const { data: viewQuota } = await supabase
+              .from("stage_subs_quotas")
+              .select("subs_allocated, subs_used")
+              .eq("tournament_id", tournamentId)
+              .eq("user_id", user.id)
+              .eq("stage_id", viewStage.id)
+              .maybeSingle();
+
             const { data: viewTeamData } = await supabase
               .from("teams")
               .select("subs_used, is_locked")
@@ -323,10 +348,15 @@ export const TeamProvider = ({ children }) => {
               .eq("stage_id", viewStage.id)
               .maybeSingle();
             
-            
-            if (viewTeamData) {
+            if (viewQuota) {
+              setSubstitutionsRemaining(Math.max(0, viewQuota.subs_allocated - viewQuota.subs_used));
+              setSubsAllocated(viewQuota.subs_allocated);
+            } else if (viewTeamData) {
               setSubstitutionsRemaining(Math.max(0, maxSubs - (viewTeamData.subs_used || 0)));
               setSubsAllocated(maxSubs);
+            }
+            
+            if (viewTeamData) {
               setIsTeamLocked(Boolean(viewTeamData.is_locked));
             }
           }
@@ -365,7 +395,14 @@ export const TeamProvider = ({ children }) => {
           setTeamId(null);
           setTeamStageId(activeStage.id); 
           setIsTeamLocked(false);
-          setSubstitutionsRemaining(maxSubs);
+          
+          if (quotaData) {
+            setSubstitutionsRemaining(Math.max(0, quotaData.subs_allocated - quotaData.subs_used));
+            setSubsAllocated(quotaData.subs_allocated);
+          } else {
+            setSubstitutionsRemaining(maxSubs);
+            setSubsAllocated(maxSubs);
+          }
 
           const draft = readCache(tournamentId, activeStage.id);
           if (draft) {

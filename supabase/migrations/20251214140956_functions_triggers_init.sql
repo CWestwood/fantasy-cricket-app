@@ -3,6 +3,7 @@ CREATE OR REPLACE FUNCTION get_leaderboard(p_tournament_id uuid)
 RETURNS TABLE (
     team_id uuid,
     team_name text,
+    stage_id uuid,
     user_id uuid,
     username text,
     total numeric,
@@ -20,6 +21,7 @@ AS $$
     SELECT 
         team_id,
         team_name,
+        stage_id,
         user_id,
         username,
         total,
@@ -50,6 +52,7 @@ CREATE OR REPLACE FUNCTION get_leaderboard_at_match(
 RETURNS TABLE (
     team_id uuid,
     team_name text,
+    stage_id uuid,
     user_id uuid,
     username text,
     total numeric,
@@ -66,6 +69,7 @@ AS $$
     SELECT 
         team_id,
         team_name,
+        stage_id,
         user_id,
         username,
         total,
@@ -121,7 +125,6 @@ CREATE OR REPLACE FUNCTION public.submit_team(
   p_team_name TEXT,
   p_players JSONB,
   p_captain_id UUID,
-  p_subs_used INT
 )
 RETURNS UUID -- Return the team_id for confirmation
 LANGUAGE plpgsql
@@ -140,7 +143,7 @@ BEGIN
     p_stage,
     p_stage_id,
     p_team_name,
-    p_subs_used
+    0
   )
   ON CONFLICT (user_id, tournament_id, stage_id)
   DO UPDATE SET
@@ -156,11 +159,13 @@ BEGIN
     FOR player_record IN SELECT * FROM jsonb_array_elements(p_players)
     LOOP
       current_player_id := (player_record->>'id')::UUID;
-      INSERT INTO public.team_players (team_id, player_id, is_captain)
+      INSERT INTO public.team_players (team_id, player_id, is_captain, stage_id, is_substituted)
       VALUES (
         v_team_id,
         current_player_id,
-        current_player_id = p_captain_id
+        current_player_id = p_captain_id,
+        p_stage_id,
+        false
       );
     END LOOP;
   END IF;
@@ -244,6 +249,7 @@ CREATE OR REPLACE FUNCTION calculate_all_team_scores_for_match(p_match_id uuid)
 RETURNS TABLE (
     team_id uuid,
     tournament_id uuid,
+    stage_id uuid,
     batting_total numeric,
     bowling_total numeric,
     fielding_total numeric,
@@ -256,31 +262,34 @@ AS $$
         SELECT 
             tp.team_id,
             t.tournament_id,
+            t.stage_id, -- Get stage_id from the team/team_players context
             s.batting,
             s.bowling,
             s.fielding,
             s.bonus,
             s.total AS score,
-            tp.is_captain,
-            tp.is_substituted
+            tp.is_captain
         FROM team_players tp
         JOIN teams t ON t.id = tp.team_id
         JOIN scores s ON s.player_id = tp.player_id
+        JOIN matches m ON m.id = s.match_id -- Join matches to verify the stage
         WHERE s.match_id = p_match_id
           AND tp.is_substituted = false
+          -- CRITICAL: Only count scores if the match stage matches the team stage
+          AND t.stage_id = m.stage_id 
     ),
     team_totals AS (
         SELECT
             team_id,
             tournament_id,
-            SUM(batting) +  SUM(CASE WHEN is_captain THEN batting ELSE 0 END) AS batting_total,
-            SUM(bowling) +  SUM(CASE WHEN is_captain THEN bowling ELSE 0 END) AS bowling_total,
-            SUM(fielding) +  SUM(CASE WHEN is_captain THEN fielding ELSE 0 END) AS fielding_total,
-            SUM(bonus) +  SUM(CASE WHEN is_captain THEN bonus ELSE 0 END) AS bonus_total,
-            SUM(score) +
-            SUM(CASE WHEN is_captain THEN score ELSE 0 END) AS final_total
+            stage_id,
+            SUM(batting) + SUM(CASE WHEN is_captain THEN batting ELSE 0 END) AS batting_total,
+            SUM(bowling) + SUM(CASE WHEN is_captain THEN bowling ELSE 0 END) AS bowling_total,
+            SUM(fielding) + SUM(CASE WHEN is_captain THEN fielding ELSE 0 END) AS fielding_total,
+            SUM(bonus) + SUM(CASE WHEN is_captain THEN bonus ELSE 0 END) AS bonus_total,
+            SUM(score) + SUM(CASE WHEN is_captain THEN score ELSE 0 END) AS final_total
         FROM player_scores
-        GROUP BY team_id, tournament_id
+        GROUP BY team_id, tournament_id, stage_id
     )
     SELECT * FROM team_totals;
 $$;
@@ -296,6 +305,7 @@ BEGIN
     SELECT 
         team_id,
         tournament_id,
+        stage_id,
         p_match_id,
         batting_total,
         bowling_total,
@@ -343,7 +353,7 @@ AS $$
 DECLARE
     v_match_id uuid;
     v_tournament_id uuid;
-    v_tournaments_processed uuid[] := ARRAY[]::uuid[];
+    v_stage_id uuid;
 BEGIN
     FOR v_match_id IN 
         SELECT match_id FROM score_update_queue ORDER BY queued_at
@@ -353,19 +363,9 @@ BEGIN
         
         -- Get tournament_id for this match
         SELECT tournament_id INTO v_tournament_id
+        -- Get tournament_id and stage_id for this match
+        SELECT tournament_id, stage_id INTO v_tournament_id, v_stage_id
         FROM matches
-        WHERE id = v_match_id;
-        
-        -- Refresh leaderboard with history (once per tournament per batch)
-        IF v_tournament_id IS NOT NULL AND 
-           NOT (v_tournament_id = ANY(v_tournaments_processed)) THEN
-            PERFORM refresh_tournament_leaderboard_with_history(v_tournament_id, v_match_id);
-            v_tournaments_processed := array_append(v_tournaments_processed, v_tournament_id);
-        END IF;
-        
-        -- Remove from queue
-        DELETE FROM score_update_queue WHERE match_id = v_match_id;
-    END LOOP;
 END;
 $$;
 
@@ -1009,7 +1009,92 @@ BEGIN
 END;
 $function$;
 
-CREATE OR REPLACE FUNCTION get_tournament_leaderboard(p_tournament_id uuid)
+CREATE OR REPLACE FUNCTION get_leaderboard(
+    p_tournament_id uuid,
+    p_stage_id uuid DEFAULT NULL  -- NULL means combined/overall leaderboard
+)
+RETURNS TABLE (
+    team_id uuid,
+    team_name text,
+    stage_id uuid,
+    user_id uuid,
+    username text,
+    total numeric,
+    batting_total numeric,
+    bowling_total numeric,
+    fielding_total numeric,
+    bonus_total numeric,
+    rank_position integer,
+    rank_change integer,
+    updated_at timestamptz
+)
+LANGUAGE sql
+STABLE
+AS $$
+    -- Per-stage leaderboard: filter cache by stage_id
+    SELECT 
+        c.team_id,
+        c.team_name,
+        c.stage_id,
+        c.user_id,
+        c.username,
+        c.total,
+        c.batting_total,
+        c.bowling_total,
+        c.fielding_total,
+        c.bonus_total,
+        c.rank_position,
+        COALESCE((
+            SELECT h.rank_change 
+            FROM tournament_leaderboard_history h 
+            WHERE h.team_id = c.team_id 
+              AND h.tournament_id = c.tournament_id
+              AND h.stage_id = c.stage_id
+            ORDER BY h.created_at DESC 
+            LIMIT 1
+        ), 0) AS rank_change,
+        c.updated_at
+    FROM tournament_leaderboard_cache c
+    WHERE c.tournament_id = p_tournament_id
+      AND c.stage_id = p_stage_id  -- exact stage match
+      AND p_stage_id IS NOT NULL
+
+    UNION ALL
+
+    -- Combined leaderboard: sum points across all stages, grouped by user_id
+    -- Uses team_id/team_name from the most recently updated team for display
+    SELECT 
+        (array_agg(c.team_id ORDER BY c.updated_at ASC))[1] AS team_id,
+        c.team_name,
+        NULL::uuid AS stage_id,
+        c.user_id,
+        c.username,
+        SUM(c.total) AS total,
+        SUM(c.batting_total) AS batting_total,
+        SUM(c.bowling_total) AS bowling_total,
+        SUM(c.fielding_total) AS fielding_total,
+        SUM(c.bonus_total) AS bonus_total,
+        RANK() OVER (ORDER BY SUM(c.total) DESC)::integer AS rank_position,
+        -- Rank change for combined: compare to most recent combined history snapshot
+        COALESCE((
+            SELECT h2.rank_change
+            FROM tournament_leaderboard_history h2
+            WHERE h2.tournament_id = c.tournament_id
+              AND h2.user_id = c.user_id
+              AND h2.stage_id IS NULL  -- combined snapshots stored with NULL stage_id
+            ORDER BY h2.created_at DESC
+            LIMIT 1
+        ), 0) AS rank_change,
+        MAX(c.updated_at) AS updated_at
+    FROM tournament_leaderboard_cache c
+    WHERE c.tournament_id = p_tournament_id
+      AND p_stage_id IS NULL  -- only run this branch for combined view
+    GROUP BY c.user_id, c.username, c.team_name, c.tournament_id
+
+    ORDER BY rank_position;
+$$;
+
+CREATE OR REPLACE FUNCTION get_tournament_leaderboard(p_tournament_id uuid, p_stage_id uuid)
 RETURNS TABLE (
     team_id uuid,
     team_name text,
@@ -1020,42 +1105,34 @@ RETURNS TABLE (
     bowling_total numeric,
     fielding_total numeric,
     bonus_total numeric,
-    rank_position integer
+    rank_position bigint
 )
 LANGUAGE sql
+STABLE
 AS $$
-    WITH team_totals AS (
-        SELECT 
-            t.id AS team_id,
-            t.team_name,
-            t.user_id,
-            u.username,
-            COALESCE(SUM(ts.total), 0) AS total_score,
-            COALESCE(SUM(ts.batting), 0) AS batting_total,
-            COALESCE(SUM(ts.bowling), 0) AS bowling_total,
-            COALESCE(SUM(ts.fielding), 0) AS fielding_total,
-            COALESCE(SUM(ts.bonus), 0) AS bonus_total
-            
-        FROM teams t
-        JOIN users u ON t.user_id = u.id
-        LEFT JOIN team_scores ts 
-            ON t.id = ts.team_id
-            AND ts.tournament_id = p_tournament_id
-        WHERE t.tournament_id = p_tournament_id
-        GROUP BY t.id, t.team_name, t.user_id, u.username
-    )
-    SELECT 
-        tt.*,
-        ROW_NUMBER() OVER (
-            ORDER BY tt.total_score DESC, tt.batting_total DESC, tt.team_name
-        ) AS rank_position
-    FROM team_totals tt
-    ORDER BY rank_position;
+  SELECT
+    t.id AS team_id,
+    t.team_name,
+    t.user_id,
+    u.username,
+    COALESCE(SUM(ts.total), 0) AS total,
+    COALESCE(SUM(ts.batting), 0) AS batting_total,
+    COALESCE(SUM(ts.bowling), 0) AS bowling_total,
+    COALESCE(SUM(ts.fielding), 0) AS fielding_total,
+    COALESCE(SUM(ts.bonus), 0) AS bonus_total,
+    RANK() OVER (ORDER BY COALESCE(SUM(ts.total), 0) DESC) AS rank_position
+  FROM teams t
+  JOIN users u ON t.user_id = u.id
+  LEFT JOIN team_scores ts ON t.id = ts.team_id
+  WHERE t.tournament_id = p_tournament_id
+    AND t.stage_id = p_stage_id
+  GROUP BY t.id, t.team_name, t.user_id, u.username;
 $$;
 
 CREATE OR REPLACE FUNCTION refresh_tournament_leaderboard_with_history(
     p_tournament_id uuid,
-    p_match_id uuid
+    p_match_id uuid,
+    p_stage_id uuid  -- now a real parameter, not a phantom variable
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -1063,82 +1140,80 @@ AS $$
 DECLARE
     v_leaderboard_count integer;
 BEGIN
-    -- Check if we have any data to work with
+    -- Check if this stage has any scored data yet
     SELECT COUNT(*) INTO v_leaderboard_count
-    FROM get_tournament_leaderboard(p_tournament_id);
-    
+    FROM get_tournament_leaderboard(p_tournament_id, p_stage_id);
+
     IF v_leaderboard_count = 0 THEN
-        RAISE NOTICE 'No leaderboard data found for tournament % - initializing empty leaderboard', p_tournament_id;
-        
-        -- Initialize leaderboard with registered teams/users at 0 points
+        RAISE NOTICE 'No leaderboard data for tournament % stage % - initializing', 
+            p_tournament_id, p_stage_id;
+
+        -- Seed the cache with zeroed entries for teams in this stage
         INSERT INTO tournament_leaderboard_cache (
-            tournament_id, team_id, team_name, user_id, username,
+            tournament_id, stage_id, team_id, team_name, user_id, username,
             total, batting_total, bowling_total, fielding_total, bonus_total, rank_position
         )
         SELECT 
             p_tournament_id,
-            t.team_id,
+            p_stage_id,
+            t.id AS team_id,
             t.team_name,
             t.user_id,
             t.username,
-            0 as total,
-            0 as batting_total,
-            0 as bowling_total,
-            0 as fielding_total,
-            0 as bonus_total,
-            ROW_NUMBER() OVER (ORDER BY t.team_name) as rank_position
-        FROM tournament_teams t  -- or whatever table tracks tournament participants
-        WHERE t.tournament_id = p_tournament_id;
-        
-        -- Create initial history snapshot
+            0, 0, 0, 0, 0,
+            ROW_NUMBER() OVER (ORDER BY t.team_name) AS rank_position
+        FROM teams t
+        WHERE t.tournament_id = p_tournament_id
+          AND t.stage_id = p_stage_id  -- only seed teams belonging to this stage
+        ON CONFLICT (tournament_id, stage_id, team_id) DO NOTHING;
+
+        -- Snapshot the zeroed state
         INSERT INTO tournament_leaderboard_history (
-            tournament_id, match_id, team_id, team_name, user_id, username,
-            total, batting_total, bowling_total, fielding_total, bonus_total, 
+            tournament_id, stage_id, match_id, team_id, team_name, user_id, username,
+            total, batting_total, bowling_total, fielding_total, bonus_total,
             rank_position, rank_change
         )
         SELECT 
-            tournament_id, p_match_id, team_id, team_name, user_id, username,
+            tournament_id, stage_id, p_match_id, team_id, team_name, user_id, username,
             total, batting_total, bowling_total, fielding_total, bonus_total,
-            rank_position, 0 as rank_change
+            rank_position, 0
         FROM tournament_leaderboard_cache
-        WHERE tournament_id = p_tournament_id;
-        
-        RAISE NOTICE 'Initialized empty leaderboard for tournament %', p_tournament_id;
+        WHERE tournament_id = p_tournament_id
+          AND stage_id = p_stage_id;
+
+        RAISE NOTICE 'Initialized empty leaderboard for tournament % stage %', 
+            p_tournament_id, p_stage_id;
         RETURN;
     END IF;
-    
-    -- Refresh current leaderboard
+
+    -- Refresh: remove stale cache rows for this stage only (don't touch other stages)
     DELETE FROM tournament_leaderboard_cache 
-    WHERE tournament_id = p_tournament_id;
-    
+    WHERE tournament_id = p_tournament_id
+      AND stage_id = p_stage_id;
+
     INSERT INTO tournament_leaderboard_cache (
-        tournament_id, team_id, team_name, user_id, username,
+        tournament_id, stage_id, team_id, team_name, user_id, username,
         total, batting_total, bowling_total, fielding_total, bonus_total, rank_position
     )
     SELECT 
         p_tournament_id,
-        team_id,
-        team_name,
-        user_id,
-        username,
-        total,
-        batting_total,
-        bowling_total,
-        fielding_total,
-        bonus_total,
-        rank_position
-    FROM get_tournament_leaderboard(p_tournament_id);
-    
-    RAISE NOTICE 'Inserted % rows into cache for tournament %', v_leaderboard_count, p_tournament_id;
-    
-    -- Save snapshot with rank changes
+        p_stage_id,
+        team_id, team_name, user_id, username,
+        total, batting_total, bowling_total, fielding_total, bonus_total, rank_position
+    FROM get_tournament_leaderboard(p_tournament_id, p_stage_id);
+
+    RAISE NOTICE 'Refreshed % rows in cache for tournament % stage %', 
+        v_leaderboard_count, p_tournament_id, p_stage_id;
+
+    -- Save per-stage history snapshot with rank change vs previous snapshot for this stage
     INSERT INTO tournament_leaderboard_history (
-        tournament_id, match_id, team_id, team_name, user_id, username,
-        total, batting_total, bowling_total, fielding_total, bonus_total, 
+        tournament_id, stage_id, match_id, team_id, team_name, user_id, username,
+        total, batting_total, bowling_total, fielding_total, bonus_total,
         rank_position, rank_change
     )
     SELECT 
         c.tournament_id,
+        p_stage_id,
         p_match_id,
         c.team_id,
         c.team_name,
@@ -1150,32 +1225,101 @@ BEGIN
         c.fielding_total,
         c.bonus_total,
         c.rank_position,
-        -- Calculate rank change from most recent previous snapshot FOR THIS MATCH
-        COALESCE(prev.rank_position - c.rank_position, 0) as rank_change
+        COALESCE(prev.rank_position - c.rank_position, 0) AS rank_change
     FROM tournament_leaderboard_cache c
     LEFT JOIN LATERAL (
-        SELECT rank_position
+        SELECT h.rank_position
         FROM tournament_leaderboard_history h
         WHERE h.tournament_id = c.tournament_id
           AND h.team_id = c.team_id
-          -- Don't compare with the current match
-        ORDER BY created_at DESC
+          AND h.stage_id = p_stage_id  -- compare within the same stage
+          AND h.match_id != p_match_id  -- exclude current match if already partially written
+        ORDER BY h.created_at DESC
         LIMIT 1
     ) prev ON true
     WHERE c.tournament_id = p_tournament_id
+      AND c.stage_id = p_stage_id
     ON CONFLICT (tournament_id, match_id, team_id) 
     DO UPDATE SET
         rank_position = EXCLUDED.rank_position,
-        rank_change = EXCLUDED.rank_change,
-        total = EXCLUDED.total,
+        rank_change   = EXCLUDED.rank_change,
+        total         = EXCLUDED.total,
         batting_total = EXCLUDED.batting_total,
         bowling_total = EXCLUDED.bowling_total,
         fielding_total = EXCLUDED.fielding_total,
-        bonus_total = EXCLUDED.bonus_total;
-    
-    RAISE NOTICE 'Inserted/updated history for match % in tournament %', p_match_id, p_tournament_id;
+        bonus_total   = EXCLUDED.bonus_total;
+
+    -- Also save a combined/overall history snapshot (stage_id = NULL)
+    -- This lets rank_change work on the combined leaderboard too
+    INSERT INTO tournament_leaderboard_history (
+        tournament_id, stage_id, match_id, team_id, team_name, user_id, username,
+        total, batting_total, bowling_total, fielding_total, bonus_total,
+        rank_position, rank_change
+    )
+    SELECT
+        agg.tournament_id,
+        NULL AS stage_id,  -- marks this as a combined snapshot
+        p_match_id,
+        agg.representative_team_id,
+        agg.team_name,
+        agg.user_id,
+        agg.username,
+        agg.total,
+        agg.batting_total,
+        agg.bowling_total,
+        agg.fielding_total,
+        agg.bonus_total,
+        agg.rank_position,
+        COALESCE(prev_combined.rank_position - agg.rank_position, 0) AS rank_change
+    FROM (
+        SELECT
+            c.tournament_id,
+            (array_agg(c.team_id ORDER BY c.updated_at DESC))[1] AS representative_team_id,
+            c.team_name,
+            c.user_id,
+            c.username,
+            SUM(c.total) AS total,
+            SUM(c.batting_total) AS batting_total,
+            SUM(c.bowling_total) AS bowling_total,
+            SUM(c.fielding_total) AS fielding_total,
+            SUM(c.bonus_total) AS bonus_total,
+            RANK() OVER (ORDER BY SUM(c.total) DESC)::integer AS rank_position
+        FROM tournament_leaderboard_cache c
+        WHERE c.tournament_id = p_tournament_id
+        GROUP BY c.tournament_id, c.user_id, c.username, c.team_name
+    ) agg
+    LEFT JOIN LATERAL (
+        SELECT h.rank_position
+        FROM tournament_leaderboard_history h
+        WHERE h.tournament_id = agg.tournament_id
+          AND h.user_id = agg.user_id
+          AND h.stage_id IS NULL  -- previous combined snapshots only
+        ORDER BY h.created_at DESC
+        LIMIT 1
+    ) prev_combined ON true
+    ON CONFLICT (tournament_id, match_id, team_id)
+    DO UPDATE SET
+        rank_position  = EXCLUDED.rank_position,
+        rank_change    = EXCLUDED.rank_change,
+        total          = EXCLUDED.total,
+        batting_total  = EXCLUDED.batting_total,
+        bowling_total  = EXCLUDED.bowling_total,
+        fielding_total = EXCLUDED.fielding_total,
+        bonus_total    = EXCLUDED.bonus_total;
+
+    RAISE NOTICE 'History saved for match % tournament % stage %', 
+        p_match_id, p_tournament_id, p_stage_id;
 END;
 $$;
+
+CREATE UNIQUE INDEX uniq_history_combined 
+ON tournament_leaderboard_history (tournament_id, match_id, team_id) 
+WHERE stage_id IS NULL;
+
+
+CREATE UNIQUE INDEX uniq_history_stage 
+ON tournament_leaderboard_history (tournament_id, match_id, team_id, stage_id) 
+WHERE stage_id IS NOT NULL;
 
 CREATE OR REPLACE FUNCTION add_tournament_id_to_process_queue()
 RETURNS trigger
@@ -1225,6 +1369,7 @@ AS $$
         SELECT 
             tp.team_id,
             t.tournament_id,
+            t.user_id,
             s.batting,
             s.bowling,
             s.fielding,
@@ -1243,24 +1388,25 @@ AS $$
         SELECT
             team_id,
             tournament_id,
+            user_id,
             SUM(batting) + SUM(CASE WHEN is_captain THEN batting ELSE 0 END) AS batting_total,
             SUM(bowling) + SUM(CASE WHEN is_captain THEN bowling ELSE 0 END) AS bowling_total,
             SUM(fielding) + SUM(CASE WHEN is_captain THEN fielding ELSE 0 END) AS fielding_total,
             SUM(bonus) + SUM(CASE WHEN is_captain THEN bonus ELSE 0 END) AS bonus_total,
             SUM(score) + SUM(CASE WHEN is_captain THEN score ELSE 0 END) AS final_total
         FROM live_scoring
-        GROUP BY team_id, tournament_id
+        GROUP BY team_id, tournament_id, user_id
     )
-    -- Actually INSERT or UPDATE your target table here
-    INSERT INTO live_userteam_points (team_id, tournament_id, match_id, batting, bowling, fielding, bonus, total)
-    SELECT team_id, tournament_id, p_match_id, batting_total, bowling_total, fielding_total, bonus_total, final_total
+    INSERT INTO live_userteam_points (team_id, tournament_id, match_id, user_id, batting, bowling, fielding, bonus, total)
+    SELECT team_id, tournament_id, p_match_id, user_id, batting_total, bowling_total, fielding_total, bonus_total, final_total
     FROM team_totals
-    ON CONFLICT (team_id, match_id) -- adjust based on your unique constraint
+    ON CONFLICT (team_id, match_id)
     DO UPDATE SET
         batting = EXCLUDED.batting,
         bowling = EXCLUDED.bowling,
         fielding = EXCLUDED.fielding,
         bonus = EXCLUDED.bonus,
         total = EXCLUDED.total,
+        user_id = EXCLUDED.user_id,
         updated_at = NOW();
 $$;

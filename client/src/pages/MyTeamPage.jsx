@@ -169,7 +169,7 @@ export default function MyTeamPage() {
           .eq("tournament_id", tournamentId);
 
         if (selectedView === "combined" && allMyTeamIds.length > 0) {
-          query = query.in("team_id", allMyTeamIds);
+          query = query.in("team_id", myTeamId);
         } else {
           query = query.eq("team_id", myTeamId);
         }
