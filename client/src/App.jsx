@@ -147,7 +147,7 @@ function AppContent() {
       <Route path="/player/:playerId" element={session ? <Layout><PlayerProfile /></Layout> : <Navigate to="/login" replace />} />
       <Route path="/admin/stats" element={session ? <Layout><AdminStats /></Layout> : <Navigate to="/login" replace />} />
       <Route path="/compare" element={session ? <Layout><TeamComparison /></Layout> : <Navigate to="/login" replace />} />
-      <Route path="/compare/:opponentTeamId" element={session ? <Layout><TeamComparison /></Layout> : <Navigate to="/login" replace />} />
+      <Route path="/compare/:teamId1/:teamId2" element={session ? <Layout><TeamComparison /></Layout> : <Navigate to="/login" replace />} />
     </Routes>
   );
 }
