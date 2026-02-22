@@ -91,12 +91,14 @@ async function allocatePoints() {
           const stumpings = performance.fielding_stumpings || 0;
 
           // Calculate derived boolean values
+          const outcome = performance.batting_outcome?.trim().toLowerCase();
+
           const out = (
-            performance.batting_outcome !== null &&
-            performance.batting_outcome !== "not out" &&
-            performance.batting_outcome !== "Not Out" &&
-            performance.batting_outcome !== "retired hurt"
-            );
+            outcome !== null &&
+            outcome !== "not out" &&
+            outcome !== "retired hurt"
+          );
+          
           const isDuck = runs === 0 && out === true; 
           const is30Plus = runs >= 30;
           const is50Plus = runs >= 50;
