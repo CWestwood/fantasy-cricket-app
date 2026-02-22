@@ -168,11 +168,7 @@ export default function MyTeamPage() {
           .in("player_id", playerIds)
           .eq("tournament_id", tournamentId);
 
-        if (selectedView === "combined" && allMyTeamIds.length > 0) {
-          query = query.in("team_id", myTeamId);
-        } else {
-          query = query.eq("team_id", myTeamId);
-        }
+        query = query.eq("team_id", myTeamId);
 
         const { data, error } = await query;
 
@@ -201,7 +197,7 @@ export default function MyTeamPage() {
     }
 
     fetchPlayerPerformance();
-  }, [displayedPlayers, tournamentId, myTeamId, selectedView, allMyTeamIds]);
+  }, [displayedPlayers, tournamentId, myTeamId]);
 
   // ── Fetch live scores ─────────────────────────────────────────────────────
   useEffect(() => {
