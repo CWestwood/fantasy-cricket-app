@@ -21,6 +21,7 @@ import Footer from "./components/ui/Footer";
 import { Analytics } from "@vercel/analytics/react";
 import SubstitutionLog from "./pages/Substitutions";
 import TournamentTracker from "./pages/TournamentTracker";
+import TeamComparison from "./pages/CompareTeams";
 
 const Layout = ({ children }) => (
   <div className="flex flex-col min-h-screen bg-dark-500">
@@ -145,6 +146,8 @@ function AppContent() {
       <Route path="/player-stats" element={session ? <Layout><PlayerStats /></Layout> : <Navigate to="/login" replace />} />
       <Route path="/player/:playerId" element={session ? <Layout><PlayerProfile /></Layout> : <Navigate to="/login" replace />} />
       <Route path="/admin/stats" element={session ? <Layout><AdminStats /></Layout> : <Navigate to="/login" replace />} />
+      <Route path="/compare" element={session ? <Layout><TeamComparison /></Layout> : <Navigate to="/login" replace />} />
+      <Route path="/compare/:opponentTeamId" element={session ? <Layout><TeamComparison /></Layout> : <Navigate to="/login" replace />} />
     </Routes>
   );
 }

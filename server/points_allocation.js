@@ -94,6 +94,7 @@ async function allocatePoints() {
           const out = (
             performance.batting_outcome !== null &&
             performance.batting_outcome !== "not out" &&
+            performance.batting_outcome !== "Not Out" &&
             performance.batting_outcome !== "retired hurt"
             );
           const isDuck = runs === 0 && out === true; 
@@ -172,7 +173,7 @@ async function allocatePoints() {
             fielding: fieldingScore,
             bonus: bonusScore,
             total: totalScore,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           };
 
           // Upsert score to database

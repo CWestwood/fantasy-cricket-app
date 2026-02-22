@@ -62,7 +62,6 @@ const BottomNavbar = ({ onNavigate }) => {
   const sidebarOnlyItems = isRegistering
     ? [] // nothing extra during registration
     : [
-        { label: "Team Selection", route: "/team" },
         { label: "Tournament Rules", route: "/tournament-rules" },
         { label: "Substitution Log", route: "/substitutionlog" },
         { label: "Tournament Tracker", route: "/tracker" }, 

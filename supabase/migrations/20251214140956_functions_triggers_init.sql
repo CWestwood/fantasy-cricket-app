@@ -1064,7 +1064,7 @@ AS $$
     -- Combined leaderboard: sum points across all stages, grouped by user_id
     -- Uses team_id/team_name from the most recently updated team for display
     SELECT 
-        (array_agg(c.team_id ORDER BY c.updated_at ASC))[1] AS team_id,
+        (array_agg(c.team_id ORDER BY c.updated_at DESC))[1] AS team_id,
         c.team_name,
         NULL::uuid AS stage_id,
         c.user_id,
