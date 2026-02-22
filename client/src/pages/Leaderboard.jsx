@@ -91,20 +91,28 @@ export default function Leaderboard() {
 
         const { data: teamsData } = await supabase
           .from("teams")
-          .select("id, subs_used, stage_id")
+          .select("id, subs_used, stage_id, user_id")
+          .eq("tournament_id", tournamentId);
+
+        const { data: quotasData } = await supabase
+          .from("stage_subs_quotas")
+          .select("user_id, stage_id, subs_allocated")
           .eq("tournament_id", tournamentId);
 
         const { data: perfData } = await supabase
           .from("player_performance_summary")
-          .select("team_id")
+          .select("team_id, stage_id")
           .eq("tournament_id", tournamentId);
 
         const stats = {};
         const stages = {};
 
         teamsData?.forEach((t) => {
+          const quota = quotasData?.find(q => q.user_id === t.user_id && q.stage_id === t.stage_id);
+          const allocated = quota ? quota.subs_allocated : maxSubs;
+
           stats[t.id] = {
-            subsRemaining: Math.max(0, maxSubs - (t.subs_used || 0)),
+            subsRemaining: Math.max(0, allocated - (t.subs_used || 0)),
             appearances: 0,
           };
           stages[t.id] = t.stage_id;
