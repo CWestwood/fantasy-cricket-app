@@ -55,6 +55,19 @@ const AdminStats = () => {
 
         setTournamentName(tournament.name);
 
+        // 4.5. Fetch stage names for lookup
+        const { data: stagesData } = await supabase
+          .from('tournament_stages')
+          .select('id, stage_name')
+          .eq('tournament_id', tournament.id);
+        
+        const stageIdToName = {};
+        if (stagesData) {
+          stagesData.forEach(s => {
+            stageIdToName[s.id] = s.stage_name;
+          });
+        }
+
         // 3. Fetch Teams & Players
         const { data: teams, error: teamsError } = await supabase
           .from('teams')
@@ -73,7 +86,8 @@ const AdminStats = () => {
               )
             )
           `)
-          .eq('tournament_id', tournament.id);
+          .eq('tournament_id', tournament.id)
+          .eq('stage_id', stageIdToName["Super8s and Knockouts"]); // Only fetch teams from the active stage
 
         if (teamsError) throw teamsError;
 
@@ -94,18 +108,7 @@ const AdminStats = () => {
 
         if (subsError) console.error('Error fetching substitutions:', subsError);
 
-        // 4.5. Fetch stage names for lookup
-        const { data: stagesData } = await supabase
-          .from('tournament_stages')
-          .select('id, stage_name')
-          .eq('tournament_id', tournament.id);
         
-        const stageIdToName = {};
-        if (stagesData) {
-          stagesData.forEach(s => {
-            stageIdToName[s.id] = s.stage_name;
-          });
-        }
 
         // 5. Process Stats (Logic ported from script)
         const playerPicks = {};

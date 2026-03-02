@@ -237,6 +237,14 @@ export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, ca
         return;
       }
 
+      // Validate team composition (e.g. must have 1 WK, 3 Batters, etc.)
+      const composition = validateTeamComposition(potentialTeam);
+      if (!composition.isValid) {
+        const firstError = Object.values(composition.errors).find((err) => err !== null);
+        setError(firstError || "Invalid team composition");
+        return;
+      }
+
       // The database trigger will handle the final validation when we actually perform the substitution
       // Just proceed to confirmation
       setPlayerToAdd(newPlayer);

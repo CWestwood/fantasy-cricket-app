@@ -10,6 +10,7 @@ SELECT
     m.id as match_id,
     m.match_name,
     m.match_date,
+    m.stage_id,
     m.status as match_status,
     -- Actual cricket stats (unchanged)
     md.batting_runs,
@@ -70,6 +71,7 @@ ON player_performance_summary(team_id, player_id, match_id);
 
 CREATE INDEX idx_player_perf_team_match ON player_performance_summary(team_id, match_id);
 CREATE INDEX idx_player_perf_team_player ON player_performance_summary(team_id, player_id);
+CREATE INDEX idx_player_perf_team_stage ON player_performance_summary(team_id, stage_id);
 
 
 REFRESH MATERIALIZED VIEW CONCURRENTLY player_performance_summary;
