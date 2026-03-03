@@ -23,7 +23,8 @@ const fetchPlayersForTeam = async (teamId) => {
   const { data } = await supabase
     .from("team_players")
     .select(`player_id, is_captain, is_substituted, squads:player_id (*)`)
-    .eq("team_id", teamId);
+    .eq("team_id", teamId)
+    .eq("is_substituted", false);
   return (data || [])
     .map((tp) => ({ ...tp.squads, is_captain: tp.is_captain, is_substituted: tp.is_substituted }))
     .filter(Boolean);
