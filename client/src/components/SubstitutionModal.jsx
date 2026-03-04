@@ -7,7 +7,7 @@ import BallIcon from "../assets/icons/ball_white.svg";
 import AllrounderIcon from "../assets/icons/allrounder_white.svg";
 import WkglovesIcon from "../assets/icons/wkgloves_white.svg";
 
-export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, captain, teamId, tournamentId }) {
+export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, captain, teamId, tournamentId, stageId }) {
   const {
     validateTeamComposition,
     validateTeamLimit,
@@ -270,6 +270,7 @@ export default function SubstitutionModal({ isOpen, onClose, selectedPlayers, ca
         
           team_id: teamId,
           tournament_id: tournamentId,
+          stage_id: stageId,
           player_out_id: playerToRemove.id,
           player_in_id: playerToAdd.id,
           status: "pending",

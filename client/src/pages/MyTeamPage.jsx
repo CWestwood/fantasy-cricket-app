@@ -417,15 +417,16 @@ export default function MyTeamPage() {
   const super8Stage = stages.find(s => (s.stage_name || "").toLowerCase().includes("super"));
   const showPickSuper8 = super8Stage && !super8Stage.is_locked;
 
+  const currentStage = selectedView === "combined" ? viewStage : stages.find(s => s.id === selectedView);
+
   let showSubButton = activityState === "live"; 
   if (showSubButton) {
-    const stageToCheck = selectedView === "combined" ? viewStage : stages.find(s => s.id === selectedView);
-    if (stageToCheck) {
-      const stageName = (stageToCheck.stage_name || "").toLowerCase();
+    if (currentStage) {
+      const stageName = (currentStage.stage_name || "").toLowerCase();
       if (stageName.includes("group")) {
-        showSubButton = new Date() <= new Date(stageToCheck.ends_at);
+        showSubButton = new Date() <= new Date(currentStage.ends_at);
       } else if (stageName.includes("super")) {
-        showSubButton = stageToCheck.is_locked === true;
+        showSubButton = currentStage.is_locked === true;
       }
     }
   }
@@ -809,6 +810,7 @@ export default function MyTeamPage() {
           captain={captainId}
           teamId={myTeamId}
           tournamentId={tournamentId}
+          stageId={currentStage?.id}
         />
 
       </div>
