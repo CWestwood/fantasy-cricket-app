@@ -208,29 +208,34 @@ export default function Leaderboard() {
   const processedRows = useMemo(() => {
     if (!rows.length) return [];
 
-    // Filter by the leaderboard's own selectedStage, not context's activeStage
-    const filteredRows = selectedStage
-      ? rows.filter((row) => teamStages[row.team_id] === selectedStage.id)
-      : rows;
+    // No client-side stage filtering needed — get_leaderboard already returns
+    // the correct rows for the selected stage/combined view
+    const hasLiveActivity = rows.some((row) => {
+      const live = selectedStage ? liveScores[row.team_id] : liveScoresByUser[row.user_id];
+      return live && live.total !== 0;
+    });
 
-    let data = filteredRows.map((row) => {
+    let data = rows.map((row) => {
       const live = selectedStage
         ? (liveScores[row.team_id] || { total: 0, batting: 0, bowling: 0, fielding: 0, bonus: 0 })
         : (liveScoresByUser[row.user_id] || { total: 0, batting: 0, bowling: 0, fielding: 0, bonus: 0 });
+
+      // extraStats is keyed by team_id — for combined view this may not match,
+      // so fall back gracefully
       const extra = extraStats[row.team_id] || { subsRemaining: "-", appearances: 0 };
 
       if (!isLive) {
         return {
           ...row,
-          display_total: Number(row.total),
-          display_batting: Number(row.batting_total),
-          display_bowling: Number(row.bowling_total),
+          display_total:    Number(row.total),
+          display_batting:  Number(row.batting_total),
+          display_bowling:  Number(row.bowling_total),
           display_fielding: Number(row.fielding_total),
-          display_bonus: Number(row.bonus_total),
+          display_bonus:    Number(row.bonus_total),
           live_delta_total: 0, live_delta_batting: 0,
           live_delta_bowling: 0, live_delta_fielding: 0, live_delta_bonus: 0,
           display_rank: row.rank_position,
-          display_rank_change: row.rank_change || 0,
+          display_rank_change: row.rank_change || 0,  // straight from DB
           appearances: extra.appearances,
           subsRemaining: extra.subsRemaining,
         };
@@ -238,16 +243,16 @@ export default function Leaderboard() {
 
       return {
         ...row,
-        display_total: Number(row.total) + live.total,
-        display_batting: Number(row.batting_total) + live.batting,
-        display_bowling: Number(row.bowling_total) + live.bowling,
+        display_total:    Number(row.total) + live.total,
+        display_batting:  Number(row.batting_total) + live.batting,
+        display_bowling:  Number(row.bowling_total) + live.bowling,
         display_fielding: Number(row.fielding_total) + live.fielding,
-        display_bonus: Number(row.bonus_total) + live.bonus,
-        live_delta_total: live.total,
-        live_delta_batting: live.batting,
-        live_delta_bowling: live.bowling,
+        display_bonus:    Number(row.bonus_total) + live.bonus,
+        live_delta_total:    live.total,
+        live_delta_batting:  live.batting,
+        live_delta_bowling:  live.bowling,
         live_delta_fielding: live.fielding,
-        live_delta_bonus: live.bonus,
+        live_delta_bonus:    live.bonus,
         appearances: extra.appearances,
         subsRemaining: extra.subsRemaining,
       };
@@ -255,17 +260,31 @@ export default function Leaderboard() {
 
     if (isLive) {
       data.sort((a, b) => b.display_total - a.display_total);
-      data = data.map((row, index) => ({
-        ...row,
-        display_rank: index + 1,
-        display_rank_change: row.rank_position ? row.rank_position - (index + 1) : 0,
-      }));
+
+      let currentRank = 1;
+      data = data.map((row, index) => {
+        if (index > 0 && row.display_total < data[index - 1].display_total) {
+          currentRank = index + 1;
+        }
+
+        // If a match is in progress, calculate live rank movement vs start-of-match position.
+        // If no live activity, use the DB rank_change which reflects last completed match movement.
+        const rankChange = hasLiveActivity
+          ? (row.rank_position - currentRank)  // positive = moved up, negative = moved down
+          : (row.rank_change || 0);
+
+        return {
+          ...row,
+          display_rank: currentRank,
+          display_rank_change: rankChange,
+        };
+      });
     } else {
       data.sort((a, b) => a.rank_position - b.rank_position);
     }
 
     return data;
-  }, [rows, liveScores, isLive, extraStats, selectedStage, teamStages]);
+  }, [rows, liveScores, liveScoresByUser, isLive, extraStats, selectedStage]);
 
   return (
     <div className="min-h-screen bg-dark-500 text-white py-6">

@@ -1053,6 +1053,7 @@ AS $$
             ORDER BY h.created_at DESC 
             LIMIT 1
         ), 0) AS rank_change,
+        COALESCE(c.rank_change, 0) AS rank_change,
         c.updated_at
     FROM tournament_leaderboard_cache c
     WHERE c.tournament_id = p_tournament_id
@@ -1248,6 +1249,15 @@ BEGIN
         bowling_total = EXCLUDED.bowling_total,
         fielding_total = EXCLUDED.fielding_total,
         bonus_total   = EXCLUDED.bonus_total;
+
+    -- SYNC BACK TO CACHE: Update the cache with the calculated rank_change
+    UPDATE tournament_leaderboard_cache c
+    SET rank_change = h.rank_change
+    FROM tournament_leaderboard_history h
+    WHERE c.team_id = h.team_id
+      AND c.tournament_id = h.tournament_id
+      AND c.stage_id = h.stage_id
+      AND h.match_id = p_match_id;
 
     -- Also save a combined/overall history snapshot (stage_id = NULL)
     -- This lets rank_change work on the combined leaderboard too

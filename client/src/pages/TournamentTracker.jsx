@@ -14,76 +14,106 @@ import { TEAM_HEX_COLORS } from "../constants/colors";
 import { TEAM_ABBREVIATIONS } from "../constants/abbreviations";
 
 export default function TournamentTracker() {
-  const { tournamentId, teamId, loading: teamLoading } = useTeam();
+  const { tournamentId, teamName, loading: teamLoading } = useTeam();
   const [loading, setLoading] = useState(true);
   const [historyData, setHistoryData] = useState([]);
   const [matches, setMatches] = useState([]);
   const [allTeams, setAllTeams] = useState([]);
-  const [selectedTeamId, setSelectedTeamId] = useState(null);
+  const [selectedTeamName, setSelectedTeamName] = useState(null);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   useEffect(() => {
     if (!tournamentId || teamLoading) return;
 
-    const fetchData = async () => {
+    const fetchMetadata = async () => {
       setLoading(true);
       try {
-        // 1. Fetch Matches for X-Axis ordering
+        // 1. Fetch Matches
         const { data: matchesData, error: matchesError } = await supabase
           .from("matches")
           .select("id, match_name, match_date, match_time, team1, team2")
           .eq("tournament_id", tournamentId)
+          .order("match_date", { ascending: true })
           .order("match_time", { ascending: true });
 
         if (matchesError) throw matchesError;
         setMatches(matchesData || []);
 
-        // 2. Fetch Leaderboard History
-        const { data: history, error: historyError } = await supabase
-          .from("tournament_leaderboard_history")
-          .select("*")
+        // 2. Fetch Teams List
+        const { data: teamsData, error: teamsError } = await supabase
+          .from("teams")
+          .select("team_name")
           .eq("tournament_id", tournamentId)
-          .neq("total", 0);
+          .order("team_name");
 
-        if (historyError) throw historyError;``
-        setHistoryData(history || []);
+        if (teamsError) throw teamsError;
 
-        // 3. Extract unique teams from history
-        const uniqueTeams = [];
-        const teamMap = new Map();
-        
-        history?.forEach((entry) => {
-          if (!teamMap.has(entry.team_id)) {
-            teamMap.set(entry.team_id, entry.team_name);
-            uniqueTeams.push({ id: entry.team_id, name: entry.team_name });
-          }
-        });
-        
-        // Sort teams alphabetically
-        uniqueTeams.sort((a, b) => a.name.localeCompare(b.name));
+        const uniqueNames = [...new Set((teamsData || []).map(t => t.team_name))];
+        const uniqueTeams = uniqueNames.map(name => ({ name }));
         setAllTeams(uniqueTeams);
 
-        if (teamId && teamMap.has(teamId)) {
-          setSelectedTeamId(teamId);
+        // Set default selection
+        if (teamName && uniqueTeams.some(t => t.name === teamName)) {
+          setSelectedTeamName(teamName);
         } else if (uniqueTeams.length > 0) {
-          setSelectedTeamId(uniqueTeams[0].id);
+          setSelectedTeamName(uniqueTeams[0].name);
         }
 
       } catch (err) {
-        console.error("Error fetching tracker data:", err);
+        console.error("Error fetching tracker metadata:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [tournamentId, teamId, teamLoading]);
+    fetchMetadata();
+  }, [tournamentId, teamName, teamLoading]);
+
+  // Fetch history specifically for the selected team
+  useEffect(() => {
+    if (!tournamentId || !selectedTeamName) return;
+
+    const fetchHistory = async () => {
+      setIsHistoryLoading(true);
+      try {
+        // First get the user_id for this team name
+        const { data: teamData } = await supabase
+          .from("teams")
+          .select("user_id")
+          .eq("tournament_id", tournamentId)
+          .eq("team_name", selectedTeamName)
+          .limit(1)
+          .single();
+
+        if (!teamData) return;
+
+        const { data: history, error: historyError } = await supabase
+          .from("tournament_leaderboard_history")
+          .select("*")
+          .eq("tournament_id", tournamentId)
+          .eq("user_id", teamData.user_id)  // ← stable identity
+          .is("stage_id", null)              // ← combined rows only
+          .neq("total", 0);
+
+        if (historyError) throw historyError;
+        setHistoryData(history || []);
+      } catch (err) {
+        console.error("Error fetching team history:", err);
+      } finally {
+        setIsHistoryLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [tournamentId, selectedTeamName]);
 
   // Process data for the selected team
   const teamStats = useMemo(() => {
-    if (!selectedTeamId || !matches.length || !historyData.length) return null;
+    if (!selectedTeamName || !matches.length || !historyData.length) return null;
 
     // Filter history for selected team
-    const teamHistory = historyData.filter(h => h.team_id === selectedTeamId);
+    const teamHistory = historyData.filter(h => h.team_name === selectedTeamName);
     if (!teamHistory.length) return null;
 
     // Find the last match that has history data to limit the x-axis
@@ -114,7 +144,9 @@ export default function TournamentTracker() {
       const shortMatchName = (t1 && t2) ? `${abbr1} vs ${abbr2}` : match.match_name;
       
       // Calculate points scored in this match (delta)
-      const matchPoints = currentTotal - previousTotal;
+      const matchPoints = entry 
+        ? Math.max(0, currentTotal - previousTotal)  // guard against stage boundary artifacts
+        : 0;
       
       if (matchPoints > maxMatchPoints) maxMatchPoints = matchPoints;
       if (rank && rank < bestRank) bestRank = rank;
@@ -139,10 +171,9 @@ export default function TournamentTracker() {
       bestRank: bestRank === 999999 ? '-' : bestRank,
       currentRank
     };
-  }, [selectedTeamId, matches, historyData]);
+  }, [selectedTeamName, matches, historyData]);
 
-  const selectedTeamName = allTeams.find(t => t.id === selectedTeamId)?.name || "Team";
-  const teamColor = TEAM_HEX_COLORS[selectedTeamName] || "#3b82f6";
+  const teamColor = TEAM_HEX_COLORS[selectedTeamName || "Team"] || "#3b82f6";
 
   if (loading) return <div className="min-h-screen bg-dark-500 flex items-center justify-center text-white">Loading Tracker...</div>;
 
@@ -157,12 +188,16 @@ export default function TournamentTracker() {
         {/* Team Selector */}
         <div className="bg-card-light rounded-2xl text-center shadow-card p-4 space-y-4">
           <select 
-            value={selectedTeamId || ""} 
-            onChange={(e) => setSelectedTeamId(e.target.value)}
+            value={selectedTeamName || ""} 
+            onChange={async (e) => {
+              const name = e.target.value;
+              setSelectedTeamName(name);
+              // user_id will be resolved in the fetchHistory effect
+            }}
             className="w-full md:w-1/2 bg-dark-500 text-white  text-center border border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:border-primary-500"
           >
             {allTeams.map(t => (
-              <option key={t.id} value={t.id}>{t.name}</option>
+              <option key={t.name} value={t.name}>{t.name}</option>
             ))}
           </select>
         </div>
@@ -191,7 +226,8 @@ export default function TournamentTracker() {
             {/* Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Rank Chart */}
-              <div className="bg-card-light rounded-2xl shadow-card p-4 h-80 flex flex-col">
+              <div className="bg-card-light rounded-2xl shadow-card p-4 h-80 flex flex-col relative">
+                {isHistoryLoading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 rounded-2xl">Loading...</div>}
                 <h3 className="text-sm font-bold text-gray-300 mb-2 text-center">Rank History</h3>
                 <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
@@ -210,6 +246,7 @@ export default function TournamentTracker() {
                       strokeWidth={2}
                       dot={{ r: 3 }}
                       activeDot={{ r: 5 }}
+                      connectNulls
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -217,7 +254,8 @@ export default function TournamentTracker() {
               </div>
 
               {/* Total Points Chart */}
-              <div className="bg-card-light rounded-2xl shadow-card p-4 h-80 flex flex-col">
+              <div className="bg-card-light rounded-2xl shadow-card p-4 h-80 flex flex-col relative">
+                {isHistoryLoading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 rounded-2xl">Loading...</div>}
                 <h3 className="text-sm font-bold text-gray-300 mb-2 text-center">Points Progression</h3>
                 <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
@@ -236,6 +274,7 @@ export default function TournamentTracker() {
                       strokeWidth={2}
                       dot={{ r: 3 }}
                       activeDot={{ r: 5 }}
+                      connectNulls
                     />
                   </LineChart>
                 </ResponsiveContainer>
