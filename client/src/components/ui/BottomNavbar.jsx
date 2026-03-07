@@ -62,6 +62,7 @@ const BottomNavbar = ({ onNavigate }) => {
   const sidebarOnlyItems = isRegistering
     ? [] // nothing extra during registration
     : [
+        { label: "Team Viewer", route: "/team-view" },
         {label: "Compare Teams", route: "/compare"},        
         { label: "Tournament Rules", route: "/tournament-rules" },
         { label: "Substitution Log", route: "/substitutionlog" },

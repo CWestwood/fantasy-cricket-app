@@ -31,6 +31,39 @@ export const TEAM_COLORS = {
   "Melbourne Renegades": "bg-red-600/70",
 };
 
+export const TEAM_TEXT_COLORS = {
+  India: "#38bdf8",                    // sky-400
+  Pakistan: "#166534",                 // green-800
+  Australia: "#facc15",                // yellow-400
+  England: "#fb7185",                  // rose-400
+  "South Africa": "#65a30d",           // lime-600
+  "New Zealand": "#64748b",            // slate-500
+  "West Indies": "#7d4354",            // rose-950
+  "Sri Lanka": "#2563eb",              // blue-600
+  Bangladesh: "#bbf7d0",               // green-200
+  Afghanistan: "#3b82f6",              // blue-500
+  Nepal: "#4f46e5",                    // indigo-600
+  USA: "#dc2626",                      // red-600
+  "United States of America": "#dc2626",
+  Namibia: "#1d4ed8",                  // blue-700
+  Scotland: "#3b82f6",                 // blue-500
+  Ireland: "#22c55e",                  // green-500
+  Italy: "#2563eb",                    // blue-600
+  UAE: "#334155",                      // slate-700
+  "United Arab Emirates": "#334155",
+  Netherlands: "#f97316",              // orange-500
+  Canada: "#dc2626",                   // red-600
+  Oman: "#f87171",                     // red-400
+  Zimbabwe: "#b91c1c",                 // red-700
+  "Hobart Hurricanes": "#ca8a04",      // yellow-600
+  "Sydney Sixers": "#db2777",          // pink-600
+  "Melbourne Stars": "#22c55e",        // green-500
+  "Brisbane Heat": "#2dd4bf",          // teal-400
+  "Perth Scorchers": "#ea580c",        // orange-600
+  "Adelaide Strikers": "#2563eb",      // blue-600
+  "Melbourne Renegades": "#dc2626",    // red-600
+};
+
 export const TEAM_COLORS_gradient = {
   "India": "from-sky-400 to-sky-900",
   "Pakistan": "from-green-500 to-green-900",
@@ -66,12 +99,12 @@ export const TEAM_COLORS_gradient = {
 };
 
 export const TEAM_HEX_COLORS = {
-  "India": "#38BDF8",
+  "India": "#16366f",
   "Pakistan": "#166534",
   "Australia": "#FACC15",
-  "England": "#FB7185",
-  "South Africa": "#65A30D",
-  "New Zealand": "#64748B",
+  "England": "#ee0f26",
+  "South Africa": "#0f736c",
+  "New Zealand": "#2e403c",
   "West Indies": "#7d4354",
   "Sri Lanka": "#2563EB",
   Bangladesh: "#BBF7D0",

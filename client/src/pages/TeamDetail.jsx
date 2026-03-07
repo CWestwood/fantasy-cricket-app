@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../utils/supabaseClient";
 import { useTeam } from "../context/TeamContext";
-import { TEAM_HEX_COLORS } from "../constants/colors";
+import { TEAM_TEXT_COLORS } from "../constants/colors";
 import BatIcon from "../assets/icons/bat_white.svg";
 import BallIcon from "../assets/icons/ball_white.svg";
 import AllrounderIcon from "../assets/icons/allrounder_white.svg";
@@ -395,14 +395,14 @@ export default function TeamDetail() {
             {/* Team Info & Toggle */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-primary-500">
+                <h1 className="text-2xl sm:text-3xl font-bold text-primary-500 py-2">
                   {team?.team_name || "Team"}
+                  </h1>
                   {team?.stageName && (
                     <span className="ml-3 text-sm font-normal text-gray-400 bg-dark-600 px-2 py-1 rounded-full border border-gray-600 align-middle">
                       {team.stageName}
                     </span>
                   )}
-                </h1>
                 <p className="text-l text-gray-300 mt-1">
                  {username || "Unknown"}
                 </p>
@@ -499,9 +499,9 @@ export default function TeamDetail() {
                             type="button"
                             onClick={(e) => goToPlayerProfile(e, p.players?.id)}
                             className={`text-sm font-semibold truncate text-left focus:outline-none ${
-                              p.is_captain ? "text-yellow-400" : (!TEAM_HEX_COLORS[p.players?.team_name] ? "text-white" : "")
+                              p.is_captain ? "text-yellow-400" : (!TEAM_TEXT_COLORS[p.players?.team_name] ? "text-white" : "")
                             }`}
-                            style={!p.is_captain && TEAM_HEX_COLORS[p.players?.team_name] ? { color: TEAM_HEX_COLORS[p.players?.team_name] } : {}}
+                            style={!p.is_captain && TEAM_TEXT_COLORS[p.players?.team_name] ? { color: TEAM_TEXT_COLORS[p.players?.team_name] } : {}}
                           >
                             {p.players?.name || "Unknown"}
                             {p.is_captain && " (C)"}
@@ -622,8 +622,8 @@ export default function TeamDetail() {
                                 <button
                                   type="button"
                                   onClick={(e) => goToPlayerProfile(e, p.players?.id)}
-                                  className={`focus:outline-none font-semibold ${p.is_captain ? "text-yellow-400" : (!TEAM_HEX_COLORS[p.players?.team_name] ? "text-white" : "")}`}
-                                  style={!p.is_captain && TEAM_HEX_COLORS[p.players?.team_name] ? { color: TEAM_HEX_COLORS[p.players?.team_name] } : {}}
+                                  className={`focus:outline-none font-semibold ${p.is_captain ? "text-yellow-400" : (!TEAM_TEXT_COLORS[p.players?.team_name] ? "text-white" : "")}`}
+                                  style={!p.is_captain && TEAM_TEXT_COLORS[p.players?.team_name] ? { color: TEAM_TEXT_COLORS[p.players?.team_name] } : {}}
                                 >
                                   {p.players?.name || "Unknown"}
                                   {p.is_captain && " (C)"}

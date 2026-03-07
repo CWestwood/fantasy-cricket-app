@@ -3,12 +3,26 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../utils/supabaseClient";
 import { useTeam } from "../context/TeamContext";
 
+const getRankColor = (rank) => {
+  if (rank === 1) return "bg-amber-400"; // Gold
+  if (rank === 2) return "bg-gray-300";   // Silver
+  if (rank === 3) return "bg-yellow-700"; // Bronze
+  return "bg-dark-500"; // Default
+};
+
+const getRankTextColor = (rank) => {
+  if (rank === 1) return "text-amber-400"; // Gold
+  if (rank === 2) return "text-white";   // Silver
+  if (rank === 3) return "text-yellow-700"; // Bronze
+  return "text-gray-200"; // Default
+};
+
 export default function Leaderboard() {
   // Only tournamentId and viewStage come from context.
   // viewStage is used only to seed the initial stage selector.
   // activeStage is intentionally NOT used here — it reflects the
   // pickable stage for TeamSelection, which is irrelevant to the leaderboard.
-  const { tournamentId } = useTeam();
+  const { tournamentId, user } = useTeam();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
@@ -23,6 +37,7 @@ export default function Leaderboard() {
   const [teamStages, setTeamStages] = useState({});
   const [allStages, setAllStages] = useState([]);
   const [picksPlayingTomorrow, setPicksPlayingTomorrow] = useState({});
+  const [hasScrolled, setHasScrolled] = useState(false);
 
   // Local stage selector — independent of TeamSelection's activeStage.
   const [selectedStage, setSelectedStage] = useState(null);
@@ -89,21 +104,34 @@ export default function Leaderboard() {
 
         const { data: settings } = await settingsQuery.maybeSingle();
         const maxSubs = settings?.max_subs || 3;
-
-        const { data: teamsData } = await supabase
+        let teamsQuery = supabase
           .from("teams")
           .select("id, subs_used, stage_id, user_id")
-          .eq("tournament_id", tournamentId);
+          .eq("tournament_id", tournamentId)
+          .limit(5000);
+
+        if (selectedStage?.id) {
+          teamsQuery = teamsQuery.eq("stage_id", selectedStage.id);
+        }
+        const { data: teamsData } = await teamsQuery.limit(5000);
+        const teamIds = teamsData?.map((t) => t.id) || [];
 
         const { data: quotasData } = await supabase
           .from("stage_subs_quotas")
           .select("user_id, stage_id, subs_allocated")
-          .eq("tournament_id", tournamentId);
+          .eq("tournament_id", tournamentId)
+          .limit(20000);
 
-        const { data: perfData } = await supabase
-          .from("player_performance_summary")
-          .select("team_id, stage_id")
-          .eq("tournament_id", tournamentId);
+        let perfData = [];
+        if (teamIds.length > 0) {
+          const { data } = await supabase
+            .from("player_performance_summary")
+            .select("team_id")
+            .eq("tournament_id", tournamentId)
+            .in("team_id", teamIds)
+            .limit(20000);
+          perfData = data || [];
+        }
 
         const stats = {};
         const stages = {};
@@ -185,6 +213,14 @@ export default function Leaderboard() {
     };
     fetchTomorrowPicks();
   }, [tournamentId]);
+
+  // Reset scroll state when stage changes
+  useEffect(() => {
+    setHasScrolled(false);
+  }, [selectedStage]);
+
+  // Scroll to user's position on load
+  
 
   async function fetchLeaderboard(stageId = null) {
     setError("");
@@ -338,6 +374,30 @@ export default function Leaderboard() {
     return data;
   }, [rows, liveScores, liveScoresByUser, isLive, extraStats, selectedStage]);
 
+  useEffect(() => {
+    if (!loading && processedRows.length > 0 && user?.id && !hasScrolled) {
+      const userRow = processedRows.find((r) => r.user_id === user.id);
+      if (userRow) {
+        setTimeout(() => {
+          const mobileEl = document.getElementById(`leaderboard-row-mobile-${userRow.team_id}`);
+          const desktopEl = document.getElementById(`leaderboard-row-desktop-${userRow.team_id}`);
+
+          try {
+            if (mobileEl && window.getComputedStyle(mobileEl).display !== "none") {
+              mobileEl.scrollIntoView({ behavior: "smooth", block: "center" });
+              setHasScrolled(true);
+            } else if (desktopEl && window.getComputedStyle(desktopEl).display !== "none") {
+              desktopEl.scrollIntoView({ behavior: "smooth", block: "center" });
+              setHasScrolled(true);
+            }
+          } catch (e) {
+            console.warn("Auto-scroll failed", e);
+          }
+        }, 500);
+      }
+    }
+  }, [loading, processedRows, user, hasScrolled]);
+
   return (
     <div className="min-h-screen bg-dark-500 text-white py-6">
       <div className="max-w-6xl mx-auto px-2 sm:px-4 space-y-6">
@@ -350,70 +410,61 @@ export default function Leaderboard() {
         <div className="bg-card-light rounded-2xl shadow-card p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h1 className="text-center text-2xl sm:text-3xl font-bold text-primary-500">
+              <h1 className="text-center text-xl sm:text-xl font-bold text-primary-500">
                 Leaderboard
                 
               </h1>
-              {lastUpdated && (
-                <p className="text-center text-sm text-gray-400 mt-1">
-                  Updated {lastUpdated.toLocaleTimeString()}
-                </p>
-              )}
+      
             </div>
 
-             <div className="flex items-center gap-3 ">
-              <div className="flex items-center gap-3 flex-wrap span-auto sm:span-full">
-              
-                {allStages.length > 1 && (
-                  <button
-                    onClick={() => setSelectedStage(null)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                      selectedStage === null
-                        ? "bg-primary-500 text-black"
-                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                    }`}
-                  >
-                    Overall
-                  </button>
-                )}
-                 
-              
-                {/* Dynamic Stage Buttons */}
-                {allStages.map((stage) => {
-                  // Map 'Super8s' and 'Knockouts' to 'Super8s', otherwise keep the name
-                  const displayName = (stage.stage_name === "Super8s and Knockouts" || stage.stage_name === "Knockouts") 
-                    ? "Super8s" 
-                    : stage.stage_name;
-
-                  return (
+             <div className="flex items-center justify-between w-full">
+                {/* Stage selector group - left */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {allStages.length > 1 && (
                     <button
-                      key={stage.id}
-                      onClick={() => setSelectedStage(stage)}
+                      onClick={() => setSelectedStage(null)}
                       className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                        selectedStage?.id === stage.id
+                        selectedStage === null
                           ? "bg-primary-500 text-black"
                           : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                       }`}
                     >
-                      {displayName}
+                      Overall
                     </button>
-                  );
-                })}
+                  )}
 
-                {/* Live Toggle Button (Now part of the same group) */}
+                  {allStages.map((stage) => {
+                    const displayName = (stage.stage_name === "Super8s and Knockouts" || stage.stage_name === "Knockouts")
+                      ? "Super8s"
+                      : stage.stage_name;
+                    return (
+                      <button
+                        key={stage.id}
+                        onClick={() => setSelectedStage(stage)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                          selectedStage?.id === stage.id
+                            ? "bg-primary-500 text-black"
+                            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                        }`}
+                      >
+                        {displayName}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Live button - right */}
                 <button
                   onClick={() => setIsLive(!isLive)}
                   className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5 ${
                     isLive
-                      ? "bg-green-600 text-white" 
+                      ? "bg-green-600 text-white"
                       : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                   }`}
                 >
-                  {/* Visual indicator for 'Live' status */}
                   <span className={`w-1.5 h-1.5 rounded-full ${isLive ? "bg-white animate-pulse" : "bg-gray-500"}`} />
                   Live
                 </button>
-              </div>
             </div>
           </div>
         </div>
@@ -439,14 +490,22 @@ export default function Leaderboard() {
               {/* Mobile card list */}
               <div className="sm:hidden space-y-1">
                 {processedRows.map((r) => {
+                  if (!r) return null;
                   const picksCount = picksPlayingTomorrow[r.team_id] || 0;
                   const picksColor = picksCount >= 8 ? "text-green-500" : picksCount >= 5 ? "text-yellow-400" : picksCount >= 3 ? "text-orange-400" : "text-red-500";
                   return (
-                  <div key={r.team_id} className="bg-dark-500 rounded-lg p-3 cursor-pointer hover:bg-dark-400 transition-colors">
+                  <div key={r.team_id} id={`leaderboard-row-mobile-${r.team_id}`} 
+                  className={`bg-dark-500 rounded-lg p-3 cursor-pointer hover:bg-dark-400 transition-colors border-l-4 border-r-4 ${
+                      r.display_rank === 1 ? "border-amber-400" :
+                      r.display_rank === 2 ? "border-gray-300" :
+                      r.display_rank === 3 ? "border-yellow-700" :
+                      r.user_id === user.id ? "border-primary-500 border-l-2 border-r-2 border-t-2 border-b-2" :
+                      "border-transparent"
+                    }`}>
                     <div onClick={() => navigate(`/team/${r.team_id}`)}>
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex flex-col items-center min-w-[2rem]">
-                          <div className="text-primary-500 font-bold text-sm">#{r.display_rank}</div>
+                          <div className={`${getRankTextColor(r.display_rank)} font-bold text-sm`}>{r.display_rank}</div>
                           {r.display_rank_change !== 0 && (
                             <span className={`text-[10px] font-bold ${r.display_rank_change > 0 ? "text-green-400" : "text-red-400"}`}>
                               {r.display_rank_change > 0 ? "▲" : "▼"} {Math.abs(r.display_rank_change)}
@@ -454,12 +513,12 @@ export default function Leaderboard() {
                           )}
                         </div>
                         <div className="flex-1 text-center">
-                          <div className="font-semibold text-sm">{r.team_name}</div>
+                          <div className={`${getRankTextColor(r.display_rank)} font-semibold text-sm`}>{r.team_name}</div>
                           <div className="text-xs text-gray-400">{r.username}</div>
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="text-right w-16">
-                            <div className="text-sm font-bold text-primary-500">
+                            <div className="text-sm font-bold text-gray-200">
                               {formatNumber(r.display_total)}
                               {isLive && r.live_delta_total !== 0 && (
                                 <span className={`ml-1 text-xs ${r.live_delta_total < 0 ? "text-red-400" : "text-green-400"}`}>
@@ -467,7 +526,7 @@ export default function Leaderboard() {
                                 </span>
                               )}
                               {isLive && r.live_delta_total === 0 && (
-                                <span className="ml-1 text-xs text-gray-400">+0</span>
+                                <span className="ml-1 text-xs text-gray-400"></span>
                               )}
                             </div>
                           </div>
@@ -579,14 +638,16 @@ export default function Leaderboard() {
                   </thead>
                   <tbody>
                     {processedRows.map((r) => (
+                      r && (
                       <React.Fragment key={r.team_id}>
                         <tr
+                          id={`leaderboard-row-desktop-${r.team_id}`}
                           className="border-b border-gray-700 hover:bg-dark-500 transition-colors cursor-pointer"
                           onClick={() => navigate(`/team/${r.team_id}`)}
                         >
                           <td className="py-3 px-4 align-top">
                             <div className="flex flex-col items-center">
-                              <span>{r.display_rank}</span>
+                              <span className={`font-bold ${getRankColor(r.display_rank)}`}>{r.display_rank}</span>
                               {r.display_rank_change !== 0 && (
                                 <span className={`text-xs font-bold ${r.display_rank_change > 0 ? "text-green-400" : "text-red-400"}`}>
                                   {r.display_rank_change > 0 ? "▲" : "▼"} {Math.abs(r.display_rank_change)}
@@ -621,6 +682,7 @@ export default function Leaderboard() {
                           </td>
                         </tr>
                       </React.Fragment>
+                      )
                     ))}
                   </tbody>
                 </table>
