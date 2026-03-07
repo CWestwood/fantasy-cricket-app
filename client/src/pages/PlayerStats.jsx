@@ -458,7 +458,7 @@ const PlayerStats = () => {
                       <button
                         type="button"
                         onClick={() => navigate(`/player/${row.playerId}`)}
-                        className="text-sm font-semibold text-white hover:text-primary-400 truncate w-full text-left"
+                        className="text-sm font-semibold text-center text-white hover:text-primary-400 truncate w-full text-left"
                       >
                         {row.playerName}
                       </button>
