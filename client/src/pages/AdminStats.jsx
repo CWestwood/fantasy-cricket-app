@@ -179,7 +179,7 @@ const AdminStats = () => {
     fetchAdminStats();
   }, []);
 
-  if (loading) return <div className="p-10 text-center">Loading Admin Stats...</div>;
+  if (loading) return <div className="min-h-screen bg-dark-500 flex items-center justify-center text-white">Loading Admin Stats...</div>;
   if (!authorized) return <div className="p-10 text-center text-red-600 font-bold">Access Denied: Admins Only</div>;
 
   return (
