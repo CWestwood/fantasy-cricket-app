@@ -22,6 +22,7 @@ export default function Leaderboard() {
   const [extraStats, setExtraStats] = useState({});
   const [teamStages, setTeamStages] = useState({});
   const [allStages, setAllStages] = useState([]);
+  const [picksPlayingTomorrow, setPicksPlayingTomorrow] = useState({});
 
   // Local stage selector — independent of TeamSelection's activeStage.
   const [selectedStage, setSelectedStage] = useState(null);
@@ -133,6 +134,57 @@ export default function Leaderboard() {
 
     fetchExtraStats();
   }, [tournamentId, selectedStage?.id]);
+
+  // Calculate "Picks Playing Tomorrow"
+  useEffect(() => {
+    if (!tournamentId) return;
+
+    const fetchTomorrowPicks = async () => {
+      try {
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+        // 1. Identify countries playing tomorrow
+        const { data: matches } = await supabase
+          .from("matches")
+          .select("team1, team2, match_date")
+          .eq("tournament_id", tournamentId);
+
+        const playingTeams = new Set();
+        matches?.forEach(m => {
+          if (m.match_date && m.match_date.startsWith(tomorrowStr)) {
+            if (m.team1) playingTeams.add(m.team1);
+            if (m.team2) playingTeams.add(m.team2);
+          }
+        });
+
+        if (playingTeams.size === 0) {
+          setPicksPlayingTomorrow({});
+          return;
+        }
+
+        // 2. Count active players from those countries for each team
+        const { data: tpData } = await supabase
+          .from("team_players")
+          .select("team_id, squads!inner(team_name), teams!inner(tournament_id)")
+          .eq("teams.tournament_id", tournamentId)
+          .eq("is_substituted", false);
+
+        const counts = {};
+        tpData?.forEach(tp => {
+          if (playingTeams.has(tp.squads?.team_name)) {
+            counts[tp.team_id] = (counts[tp.team_id] || 0) + 1;
+          }
+        });
+        setPicksPlayingTomorrow(counts);
+      } catch (err) {
+        console.error("Error calculating tomorrow picks:", err);
+      }
+    };
+    fetchTomorrowPicks();
+  }, [tournamentId]);
 
   async function fetchLeaderboard(stageId = null) {
     setError("");
@@ -288,7 +340,7 @@ export default function Leaderboard() {
 
   return (
     <div className="min-h-screen bg-dark-500 text-white py-6">
-      <div className="max-w-6xl mx-auto px-4 space-y-6">
+      <div className="max-w-6xl mx-auto px-2 sm:px-4 space-y-6">
         {!tournamentId && (
           <div className="bg-yellow-900/30 border border-yellow-600 rounded-2xl p-4 text-yellow-200 text-sm">
             No tournament selected. Please select a tournament to view the leaderboard.
@@ -373,14 +425,28 @@ export default function Leaderboard() {
             <div className="text-gray-400">No leaderboard data available.</div>
           ) : (
             <div className="space-y-2">
+              {/* Mobile Header Row */}
+              <div className="sm:hidden px-3 pb-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                <div className="flex items-center gap-3">
+                  <div className="min-w-[2rem] text-center">Pos</div>
+                  <div className="flex-1 text-center">Team</div>
+                  <div className="w-16 text-center">Total</div>
+                  <div className="w-8 text-center">Picks</div>
+                  <div className="w-3"></div>
+                </div>
+              </div>
+
               {/* Mobile card list */}
               <div className="sm:hidden space-y-1">
-                {processedRows.map((r) => (
+                {processedRows.map((r) => {
+                  const picksCount = picksPlayingTomorrow[r.team_id] || 0;
+                  const picksColor = picksCount >= 8 ? "text-green-500" : picksCount >= 5 ? "text-yellow-400" : picksCount >= 3 ? "text-orange-400" : "text-red-500";
+                  return (
                   <div key={r.team_id} className="bg-dark-500 rounded-lg p-3 cursor-pointer hover:bg-dark-400 transition-colors">
                     <div onClick={() => navigate(`/team/${r.team_id}`)}>
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex flex-col items-center min-w-[2rem]">
-                          <div className="text-primary-500 font-bold text-lg">#{r.display_rank}</div>
+                          <div className="text-primary-500 font-bold text-sm">#{r.display_rank}</div>
                           {r.display_rank_change !== 0 && (
                             <span className={`text-[10px] font-bold ${r.display_rank_change > 0 ? "text-green-400" : "text-red-400"}`}>
                               {r.display_rank_change > 0 ? "▲" : "▼"} {Math.abs(r.display_rank_change)}
@@ -388,12 +454,12 @@ export default function Leaderboard() {
                           )}
                         </div>
                         <div className="flex-1 text-center">
-                          <div className="font-semibold">{r.team_name}</div>
+                          <div className="font-semibold text-sm">{r.team_name}</div>
                           <div className="text-xs text-gray-400">{r.username}</div>
                         </div>
-                        <div className="flex items-center gap-5">
-                          <div className="text-right">
-                            <div className="font-bold text-primary-500">
+                        <div className="flex items-center gap-3">
+                          <div className="text-right w-16">
+                            <div className="text-sm font-bold text-primary-500">
                               {formatNumber(r.display_total)}
                               {isLive && r.live_delta_total !== 0 && (
                                 <span className={`ml-1 text-xs ${r.live_delta_total < 0 ? "text-red-400" : "text-green-400"}`}>
@@ -403,6 +469,11 @@ export default function Leaderboard() {
                               {isLive && r.live_delta_total === 0 && (
                                 <span className="ml-1 text-xs text-gray-400">+0</span>
                               )}
+                            </div>
+                          </div>
+                          <div className="text-center w-8">
+                            <div className={`text-xs font-bold ${picksColor}`}>
+                              {picksCount}
                             </div>
                           </div>
                           <button
@@ -490,7 +561,8 @@ export default function Leaderboard() {
                       );
                     })()}
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Desktop table */}
