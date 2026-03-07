@@ -244,8 +244,8 @@ export default function TeamComparePage() {
   const [stages,       setStages]       = useState([]);
   const [leftTeamId,   setLeftTeamId]   = useState(null);
   const [rightTeamId,  setRightTeamId]  = useState(null);
-  const [leftTeam,     setLeftTeam]     = useState({ id: null, name: "", players: [] });
-  const [rightTeam,    setRightTeam]    = useState({ id: null, name: "", players: [] });
+  const [leftTeam,     setLeftTeam]     = useState({ id: null, name: "", players: [], total: 0 });
+  const [rightTeam,    setRightTeam]    = useState({ id: null, name: "", players: [], total: 0 });
   const [leftScores,   setLeftScores]   = useState({});
   const [rightScores,  setRightScores]  = useState({});
   const [loadingLeft,  setLoadingLeft]  = useState(false);
@@ -282,7 +282,7 @@ export default function TeamComparePage() {
     const setScores  = side === "left" ? setLeftScores  : setRightScores;
 
     if (!teamId) {
-      setTeam({ id: null, name: "", players: [] });
+      setTeam({ id: null, name: "", players: [], total: 0 });
       setScores({});
       return;
     }
@@ -291,7 +291,21 @@ export default function TeamComparePage() {
       const meta    = allTeams.find((t) => t.id === teamId);
       const players = await fetchPlayersForTeam(teamId);
       const scores  = await fetchScoresForTeam(teamId, players.map((p) => p.id), tournamentId);
-      setTeam({ id: teamId, name: meta?.team_name || "Team", players });
+      
+      // Fetch tournament total for user (sum of all stages)
+      let total = 0;
+      if (meta?.user_id) {
+        const { data } = await supabase
+          .from("tournament_leaderboard_cache")
+          .select("total")
+          .eq("tournament_id", tournamentId)
+          .eq("user_id", meta.user_id);
+        if (data) {
+          total = data.reduce((acc, r) => acc + (Number(r.total) || 0), 0);
+        }
+      }
+
+      setTeam({ id: teamId, name: meta?.team_name || "Team", players, total });
       setScores(scores);
     } catch (e) {
       console.error(`Error loading ${side} team:`, e);
@@ -314,9 +328,6 @@ export default function TeamComparePage() {
 
   const leftCaptainId  = leftTeam.players.find((p)  => p.is_captain && !p.is_substituted)?.id;
   const rightCaptainId = rightTeam.players.find((p) => p.is_captain && !p.is_substituted)?.id;
-
-  const leftTotal  = Object.values(leftScores).reduce((s, v)  => s + (v.total || 0), 0);
-  const rightTotal = Object.values(rightScores).reduce((s, v) => s + (v.total || 0), 0);
 
   const bothSelected = !!(leftTeamId && rightTeamId);
   const isLoading    = loadingLeft || loadingRight;
@@ -417,8 +428,8 @@ export default function TeamComparePage() {
             <ScoreBanner
               leftName={leftTeam.name}
               rightName={rightTeam.name}
-              leftTotal={leftTotal}
-              rightTotal={rightTotal}
+              leftTotal={leftTeam.total}
+              rightTotal={rightTeam.total}
               diffCount={diffCount}
             />
           )}
