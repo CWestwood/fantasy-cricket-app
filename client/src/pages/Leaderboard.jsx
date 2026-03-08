@@ -171,7 +171,7 @@ export default function Leaderboard() {
       try {
         const today = new Date();
         const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
+        tomorrow.setDate(today.getDate());
         const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
         // 1. Identify countries playing tomorrow
