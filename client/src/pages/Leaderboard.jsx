@@ -287,11 +287,11 @@ export default function Leaderboard() {
   }
 
   const formatNumber = (v) => {
-    if (v === null || v === undefined) return "0";
+    if (v === null || v === undefined) return 0;
     const n = Number(v);
-    if (Number.isNaN(n)) return String(v);
-    return n % 1 === 0 ? String(n) : n.toFixed(1);
-  };
+    if (Number.isNaN(n)) return v;
+    return Math.round(n);
+    };
 
   const processedRows = useMemo(() => {
     if (!rows.length) return [];
@@ -518,7 +518,7 @@ export default function Leaderboard() {
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="text-right w-16">
-                            <div className="text-sm font-bold text-gray-200">
+                            <div className="text-xs font-bold text-gray-200">
                               {formatNumber(r.display_total)}
                               {isLive && r.live_delta_total !== 0 && (
                                 <span className={`ml-1 text-xs ${r.live_delta_total < 0 ? "text-red-400" : "text-green-400"}`}>
